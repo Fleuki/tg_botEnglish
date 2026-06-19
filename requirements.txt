@@ -1,0 +1,7 @@
+aiogram==3.22.0
+SQLAlchemy==2.0.41
+asyncpg==0.30.0
+alembic==1.16.4
+APScheduler==3.11.0
+python-dotenv==1.1.1
+openai>=1.100.0
