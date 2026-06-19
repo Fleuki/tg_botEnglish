@@ -1,16 +1,16 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase, declarative_base
+from sqlalchemy.orm import DeclarativeBase
 
-DATABASE_URL = "sqlite+aiosqlite:///./bot.db"
+from app.config import DATABASE_URL
 
 engine = create_async_engine(
     DATABASE_URL,
-    echo=True
+    echo=True,
 )
 
 AsyncSessionLocal = async_sessionmaker(
     engine,
-    expire_on_commit=False
+    expire_on_commit=False,
 )
 
 
@@ -22,8 +22,7 @@ async def init_db():
     # импортируем модели здесь, чтобы зарегистрировать таблицы
     from app.database.models.user import User
     from app.database.models.vocab import Vocab
+    from app.database.models.ai_cache import AICache
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
-Base = declarative_base()
