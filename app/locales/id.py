@@ -41,4 +41,6 @@ MESSAGES = {
     "set_level": "Mengubah level",
     "set_time": "Mengubah waktu pelajaran",
     "saved": "✅ Disimpan!",
+    "generating_lesson": "⏳ Mengenerasi pelajaran...",
+    "lesson_limit_reached": "Batas pelajaran harian tercapai (3 per hari). Kembali besok!",
 }

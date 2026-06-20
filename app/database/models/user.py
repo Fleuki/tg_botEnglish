@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, BigInteger, String, DateTime
+from sqlalchemy import Column, Integer, BigInteger, String, DateTime, Date
 from datetime import datetime
 from app.database.db import Base
 
@@ -15,4 +15,8 @@ class User(Base):
     last_activity_date = Column(DateTime, default=datetime.utcnow)
     streak_days = Column(Integer, default=0)
 
-    preferred_topic = Column(String, default="general")  # 👈 ДОБАВИТЬ
+    preferred_topic = Column(String, default="general")
+
+    # Счётчик уроков за день (защита от перерасхода API).
+    lessons_today = Column(Integer, default=0)
+    lessons_date = Column(Date, nullable=True)
