@@ -35,5 +35,10 @@ MESSAGES = {
     "daily_streak": "Daily streak",
     "current_level": "Current level",
     "lesson_time_setting": "Lesson time",
-    "days": "days"
+    "days": "days",
+    "set_interface_lang": "Change interface language",
+    "set_native_lang": "Change native language",
+    "set_level": "Change level",
+    "set_time": "Change lesson time",
+    "saved": "✅ Saved!",
 }

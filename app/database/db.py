@@ -3,15 +3,13 @@ from sqlalchemy.orm import DeclarativeBase
 
 from app.config import DATABASE_URL
 
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=True,
-)
+# echo=True печатает все SQL-запросы в консоль — удобно при разработке,
+# но на сервере это лишний шум. Включаем только для SQLite (локально).
+echo = DATABASE_URL.startswith("sqlite")
 
-AsyncSessionLocal = async_sessionmaker(
-    engine,
-    expire_on_commit=False,
-)
+engine = create_async_engine(DATABASE_URL, echo=echo)
+
+AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 
 class Base(DeclarativeBase):

@@ -35,5 +35,10 @@ MESSAGES = {
     "daily_streak": "Urutan harian",
     "current_level": "Level saat ini",
     "lesson_time_setting": "Waktu pelajaran",
-    "days": "hari"
+    "days": "hari",
+    "set_interface_lang": "Mengubah bahasa antarmuka",
+    "set_native_lang": "Mengubah bahasa ibu",
+    "set_level": "Mengubah level",
+    "set_time": "Mengubah waktu pelajaran",
+    "saved": "✅ Disimpan!",
 }

@@ -70,18 +70,6 @@ async def menu_stats(call: CallbackQuery, lang: str):
     await call.answer()
 
 
-@router.callback_query(F.data == "menu:settings")
-async def menu_settings(call: CallbackQuery, lang: str):
-    settings_text = (
-        f"{t('settings_button', lang)} ⚙️\n\n"
-        f"🌍 {t('choose_interface_language', lang)}\n"
-        f"⏰ {t('lesson_time', lang)}\n\n"
-        "Use /start to change settings"
-    )
-    
-    await call.message.edit_text(settings_text)
-    await call.answer()
-
 
 @router.callback_query(F.data == "menu:back")
 async def menu_back(call: CallbackQuery, lang: str):

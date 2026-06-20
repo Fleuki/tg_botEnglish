@@ -35,5 +35,10 @@ MESSAGES = {
     "daily_streak": "Дни подряд",
     "current_level": "Текущий уровень",
     "lesson_time_setting": "Время урока",
-    "days": "дней"
+    "days": "дней",
+    "set_interface_lang": "Изменить язык интерфейса",
+    "set_native_lang": "Изменить родной язык",
+    "set_level": "Изменить уровень",
+    "set_time": "Изменить время урока",
+    "saved": "✅ Сохранено!",
 }

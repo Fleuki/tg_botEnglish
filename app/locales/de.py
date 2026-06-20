@@ -35,5 +35,10 @@ MESSAGES = {
     "daily_streak": "Tägliche Serie",
     "current_level": "Aktuelles Niveau",
     "lesson_time_setting": "Lektionszeit",
-    "days": "Tage"
+    "days": "Tage",
+    "set_interface_lang": "Sprache der Oberfläche ändern",  
+    "set_native_lang": "Muttersprache ändern",
+    "set_level": "Niveau ändern",
+    "set_time": "Lektionszeit ändern",
+    "saved": "✅ Gespeichert!",
 }

@@ -8,6 +8,9 @@ from app.database.db import AsyncSessionLocal
 from app.database.models.user import User
 from app.locales import t
 from aiogram.types import ReplyKeyboardRemove
+from aiogram import F
+from aiogram.types import CallbackQuery
+from app.keyboards.settings import level_register_kb
 
 router = Router()
 LANGUAGES = {
@@ -23,18 +26,18 @@ LANGUAGES = {
 # ----------------------------------
 # 1. Язык интерфейса
 # ----------------------------------
-@router.message(RegisterState.interface_language)
-async def set_interface_language(message: Message, state: FSMContext):
-
-    lang = LANGUAGES.get(message.text, "en")
-
+@router.callback_query(RegisterState.interface_language, F.data.startswith("reglang:"))
+async def set_interface_language(call: CallbackQuery, state: FSMContext):
+    # из "reglang:ru" берём код "ru"
+    lang = call.data.split(":")[1]
+ 
     await state.update_data(interface_language=lang)
-
     await state.set_state(RegisterState.native_language)
-
-    await message.answer(
-        t("native_language", lang)
-    )
+ 
+    # редактируем сообщение: убираем кнопки, показываем след. вопрос
+    await call.message.edit_text(t("native_language", lang))
+    await call.answer()
+ 
 
 
 # ----------------------------------
@@ -42,39 +45,28 @@ async def set_interface_language(message: Message, state: FSMContext):
 # ----------------------------------
 @router.message(RegisterState.native_language)
 async def set_native_language(message: Message, state: FSMContext):
-
-    await state.update_data(
-        native_language=message.text
-    )
-
+    await state.update_data(native_language=message.text)
     data = await state.get_data()
-
     await state.set_state(RegisterState.level)
-
     await message.answer(
         t("level", data["interface_language"]),
-        reply_markup=english_level_keyboard()
+        reply_markup=level_register_kb()   # inline вместо Reply
     )
-
 
 # ----------------------------------
 # 3. Уровень английского
 # ----------------------------------
-@router.message(RegisterState.level)
-async def set_level(message: Message, state: FSMContext):
-
-    await state.update_data(
-        level=message.text.upper()
-    )
-
+@router.callback_query(RegisterState.level, F.data.startswith("reglevel:"))
+async def set_level(call: CallbackQuery, state: FSMContext):
+    level = call.data.split(":")[1]
+    await state.update_data(level=level)
     data = await state.get_data()
-
     await state.set_state(RegisterState.lesson_time)
-
-    await message.answer(
-        t("lesson_time", data["interface_language"]),
-        reply_markup=ReplyKeyboardRemove()
+    await call.message.edit_text(
+        t("lesson_time", data["interface_language"])
     )
+    await call.answer()
+ 
 # ----------------------------------
 # 4. Время уроков
 # ----------------------------------
