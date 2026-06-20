@@ -1,4 +1,5 @@
 from datetime import datetime, date
+from zoneinfo import ZoneInfo
 from sqlalchemy import select
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.database.db import AsyncSessionLocal
@@ -10,18 +11,23 @@ from app.services.srs import send_next_card
 from app.keyboards.lesson import lesson_kb
 from app.services.memory import LESSONS
 
-scheduler = AsyncIOScheduler()
+# Часовой пояс по которому пользователи задают время урока.
+# Сервер может жить по UTC, но мы всегда считаем по Москве —
+# тогда поведение одинаковое и локально, и на сервере.
+TZ = ZoneInfo("Europe/Moscow")
 
-# Track which users have received lessons today
+scheduler = AsyncIOScheduler(timezone=TZ)
+
+# Защита от повторной отправки в течение дня.
 LESSONS_SENT_TODAY = set()
 
 
 # -------------------------
 # 1. DAILY LESSON
 # -------------------------
-
 async def send_daily_lessons():
-    now = datetime.now().strftime("%H:%M")
+    # Текущее время ИМЕННО по Москве, а не по часовому поясу сервера.
+    now = datetime.now(TZ).strftime("%H:%M")
     today = date.today()
 
     async with AsyncSessionLocal() as session:
@@ -30,13 +36,11 @@ async def send_daily_lessons():
         users = result.scalars().all()
 
         for user in users:
-            # Skip if already sent today
             if (user.telegram_id, today) in LESSONS_SENT_TODAY:
                 continue
 
             lesson = await generate_ai_lesson(user)
 
-            # 🔥 фиксируем структуру урока
             lesson_data = {
                 "title": lesson.get("title", "📖 Daily English"),
                 "text": lesson["text"],
@@ -53,19 +57,15 @@ async def send_daily_lessons():
                 reply_markup=lesson_kb(user.interface_language or "en")
             )
 
-            # Mark as sent today
             LESSONS_SENT_TODAY.add((user.telegram_id, today))
 
-            # сохраняем слова в БД
             for v in lesson_data["vocab"]:
-
                 existing = await session.execute(
                     select(Vocab).where(
                         Vocab.telegram_id == user.telegram_id,
                         Vocab.word == v["word"]
                     )
                 )
-
                 if not existing.scalar_one_or_none():
                     session.add(
                         Vocab(
@@ -73,7 +73,8 @@ async def send_daily_lessons():
                             word=v["word"],
                             translation=v["translation"],
                             stage=0,
-                            next_review=datetime.utcnow()
+                            # next_review тоже по Москве, чтобы всё было в одной шкале
+                            next_review=datetime.now(TZ).replace(tzinfo=None)
                         )
                     )
 
@@ -84,11 +85,11 @@ async def send_daily_lessons():
 # 2. REPEAT LESSONS
 # -------------------------
 async def send_repeat_lessons():
-
-    now = datetime.utcnow()
+    # Сравниваем по той же шкале (Москва, без tzinfo — naive),
+    # чтобы согласовать с next_review выше.
+    now = datetime.now(TZ).replace(tzinfo=None)
 
     async with AsyncSessionLocal() as session:
-
         stmt = select(Vocab).where(Vocab.next_review <= now)
         result = await session.execute(stmt)
         words = result.scalars().all()
@@ -108,6 +109,7 @@ async def send_repeat_lessons():
             await send_next_card(telegram_id, user_lang)
 
         await session.commit()
+
 
 # -------------------------
 # 3. START SCHEDULER
