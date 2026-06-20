@@ -41,4 +41,6 @@ MESSAGES = {
     "set_level": "Cambiar nivel",
     "set_time": "Cambiar hora de la lección",
     "saved": "✅ Guardado!",
+    "generating_lesson": "⏳ Generando lección...",
+    "lesson_limit_reached": "Límite de lecciones alcanzado para hoy (3 por día). Vuelve mañana!",
 }

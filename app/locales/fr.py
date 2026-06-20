@@ -41,4 +41,6 @@ MESSAGES = {
     "set_level": "Changer le niveau",
     "set_time": "Changer l'heure de la leçon",
     "saved": "✅ Enregistré!",
+    "generating_lesson": "⏳ Générant la leçon...",
+    "lesson_limit_reached": "Limite de leçons atteint pour aujourd'hui (3 par jour). Reviens demain!",
 }
