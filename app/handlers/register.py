@@ -2,7 +2,6 @@ from aiogram import Router
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from sqlalchemy import select
-from app.keyboards.register import english_level_keyboard
 from app.states.register import RegisterState
 from app.database.db import AsyncSessionLocal
 from app.database.models.user import User
