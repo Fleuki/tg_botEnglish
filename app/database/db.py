@@ -3,8 +3,6 @@ from sqlalchemy.orm import DeclarativeBase
 
 from app.config import DATABASE_URL
 
-# echo=True печатает все SQL-запросы в консоль — удобно при разработке,
-# но на сервере это лишний шум. Включаем только для SQLite (локально).
 echo = DATABASE_URL.startswith("sqlite")
 
 engine = create_async_engine(DATABASE_URL, echo=echo)
@@ -17,10 +15,12 @@ class Base(DeclarativeBase):
 
 
 async def init_db():
-    # импортируем модели здесь, чтобы зарегистрировать таблицы
     from app.database.models.user import User
     from app.database.models.vocab import Vocab
     from app.database.models.ai_cache import AICache
 
     async with engine.begin() as conn:
+        # ⚠️ ВРЕМЕННО: сносим все таблицы и создаём заново.
+        # Это УДАЛЯЕТ все данные. Убрать сразу после одного запуска!
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
