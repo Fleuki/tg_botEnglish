@@ -43,4 +43,6 @@ MESSAGES = {
     "saved": "✅ Salvo!",
     "generating_lesson": "⏳ Gerando lição...",
     "lesson_limit_reached": "Limite de lições atingido para hoje (3 por dia). Volte amanhã!",
+    "repeat_button": "🔁 Repetir palavras",
+    "repeat_reminder": "📚 Não se esqueça de revisar as palavras anteriores! Pronto para revisar: {count} palavras",
 }
