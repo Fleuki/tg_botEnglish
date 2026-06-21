@@ -43,4 +43,6 @@ MESSAGES = {
     "saved": "✅ Gespeichert!",
     "generating_lesson": "⏳ Lektion generieren...",
     "lesson_limit_reached": "Lektionslimit für heute erreicht (3 pro Tag). Komm morgen wieder!",
+    "repeat_button": "🔁 Wörter wiederholen",
+    "repeat_reminder": "📚 Vergiss nicht, die vorherigen Wörter zu wiederholen! Bereit zum Wiederholen: {count} Wörter",
 }

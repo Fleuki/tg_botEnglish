@@ -7,6 +7,8 @@ from app.database.models.vocab import Vocab
 from app.bot import bot
 from app.keyboards.srs import srs_card_kb
 from app.locales import t
+from zoneinfo import ZoneInfo
+from sqlalchemy import func
 
 REVIEW_STAGES = [1, 3, 7, 14, 30]
 
@@ -66,3 +68,23 @@ async def send_next_card(telegram_id: int, lang: str = "en"):
         f"🧠 {vocab.word}",
         reply_markup=srs_card_kb(vocab.id, lang)
     )
+
+
+TZ = ZoneInfo("Europe/Moscow")
+
+
+async def count_due_words(telegram_id: int) -> int:
+    """Сколько слов готово к повторению прямо сейчас (по московскому времени)."""
+    now = datetime.now(TZ).replace(tzinfo=None)
+    async with AsyncSessionLocal() as session:
+        stmt = (
+            select(func.count())
+            .select_from(Vocab)
+            .where(Vocab.telegram_id == telegram_id)
+            .where(
+                (Vocab.next_review == None) |
+                (Vocab.next_review <= now)
+            )
+        )
+        result = await session.execute(stmt)
+        return result.scalar() or 0

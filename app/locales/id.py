@@ -43,4 +43,6 @@ MESSAGES = {
     "saved": "✅ Disimpan!",
     "generating_lesson": "⏳ Mengenerasi pelajaran...",
     "lesson_limit_reached": "Batas pelajaran harian tercapai (3 per hari). Kembali besok!",
+    "repeat_button": "🔁 Mengulang kata-kata",
+    "repeat_reminder": "📚 Jangan lupa mengulang kata-kata sebelumnya! Siap untuk mengulang: {count} kata",
 }
