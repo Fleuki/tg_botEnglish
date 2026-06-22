@@ -13,6 +13,7 @@ from app.handlers.srs import router as srs_router
 from app.handlers.menu import router as menu_router
 from app.middlewares.i18n import I18nMiddleware
 from app.handlers import settings
+from app.handlers import check_text
 
 dp = Dispatcher()
 
@@ -26,7 +27,7 @@ dp.include_router(settings.router)
 dp.include_router(menu_router)
 dp.include_router(lesson_router)
 dp.include_router(srs_router)
-
+dp.include_router(check_text.router)
 
 async def set_commands():
     """Меню команд, которое видно в кнопке слева от поля ввода."""

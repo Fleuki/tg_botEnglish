@@ -181,12 +181,12 @@ Vocabulary translations must be in the same language as the full translation.
     for attempt in range(MAX_RETRIES):
         try:
             response = await client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.7,
+                temperature=0.85,
             )
 
             content = response.choices[0].message.content
@@ -231,3 +231,68 @@ Vocabulary translations must be in the same language as the full translation.
             await asyncio.sleep(BASE_DELAY * (attempt + 1))
 
     return FALLBACK_LESSON
+
+# Добавь в конец app/services/ai.py
+# (client, AsyncOpenAI и т.д. уже импортированы вверху файла)
+
+import json as _json
+
+CHECK_SYSTEM_PROMPT = """
+You are a friendly, encouraging English teacher checking a student's writing.
+
+The student writes text in English. You analyze it for mistakes (grammar, word choice, articles, prepositions, word order, spelling).
+
+Return STRICT VALID JSON only. No markdown, no extra text. Schema:
+{
+  "has_errors": true/false,
+  "corrected": "the corrected version of the full text (or the original if perfect)",
+  "explanations": [
+    { "wrong": "the incorrect fragment", "right": "the correct fragment", "rule": "short, simple explanation of the rule in the student's native language" }
+  ],
+  "praise": "one short encouraging sentence in the student's native language"
+}
+
+Rules:
+- Explanations and praise MUST be written in the student's NATIVE LANGUAGE (given below), so a beginner understands.
+- Keep rule explanations short and simple, no linguistic jargon.
+- If the text is correct, set has_errors=false, corrected=original, explanations=[], and give warm praise.
+- If there are errors, list each meaningful one (max 5) in explanations.
+- Optionally, if the text is correct but could sound more natural, you may still suggest a smoother version in 'corrected' and note it gently in praise.
+"""
+
+
+async def check_user_text(text: str, native_language: str) -> dict:
+    """Проверяет текст пользователя на ошибки. Возвращает разбор в виде dict."""
+    user_prompt = (
+        f"Student's native language: {native_language}\n\n"
+        f"Check this English text:\n\n{text}"
+    )
+
+    try:
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": CHECK_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.3,  # для проверки нужна точность, не креатив
+        )
+        content = response.choices[0].message.content
+        data = _json.loads(content)
+
+        # минимальная валидация
+        if "has_errors" not in data or "corrected" not in data:
+            raise ValueError("bad structure")
+        data.setdefault("explanations", [])
+        data.setdefault("praise", "")
+        return data
+
+    except Exception as e:
+        print("check_user_text failed:", e)
+        return {
+            "has_errors": False,
+            "corrected": text,
+            "explanations": [],
+            "praise": "",
+            "_error": True,  # флаг что проверка не удалась
+        }

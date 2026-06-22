@@ -45,4 +45,13 @@ MESSAGES = {
     "lesson_limit_reached": "Limite de leçons atteint pour aujourd'hui (3 par jour). Reviens demain!",
     "repeat_button": "🔁 Répéter les mots",
     "repeat_reminder": "📚 N'oublie pas de réviser les mots précédents! Prêt à réviser: {count} mots",
+    "check_button": "📝 Vérifier le texte",
+    "check_prompt": "Écris une phrase ou un texte en anglais — je trouverai les erreurs, les corrigerai, et expliquerai les règles.",
+    "check_analyzing": "🔍 Vérifiant...",
+    "check_corrected": "Version corrigée:",
+    "check_mistakes": "Analyse des erreurs:",
+    "check_empty": "Envoyer un texte en anglais pour vérifier.",
+    "check_too_long": "Texte trop long. Maximum {max} caractères à la fois.",
+    "check_failed": "Échec de la vérification du texte, réessaye.",
+    "check_limit_reached": "Limite de vérification de texte atteinte pour aujourd'hui (5 par jour). Reviens demain!",
 }
