@@ -7,14 +7,14 @@ from app.locales import t
 from app.states.lesson import LessonStates
 from app.services.memory import LESSONS
 from app.services.stats import update_user_activity
-router = Router()
 
+router = Router()
 
 
 @router.callback_query(F.data == "lesson:start_questions")
 async def start_questions(call: CallbackQuery, state: FSMContext, lang: str):
-    await update_user_activity(call.from_user.id)
-
+    # Стрик здесь НЕ засчитываем — только открытие вопросов.
+    # День засчитается когда пользователь реально ответит (в check_answer).
     lesson = LESSONS.get(call.from_user.id)
 
     if not lesson:
@@ -28,7 +28,6 @@ async def start_questions(call: CallbackQuery, state: FSMContext, lang: str):
         await call.answer()
         return
 
-    # сохраняем вопросы, текущий индекс и счёт правильных ответов
     await state.update_data(
         questions=questions,
         question_index=0,
@@ -38,7 +37,6 @@ async def start_questions(call: CallbackQuery, state: FSMContext, lang: str):
     await state.set_state(LessonStates.answering_question)
 
     q = questions[0]
-
     question_label = t("question", lang)
 
     text = (
@@ -49,17 +47,12 @@ async def start_questions(call: CallbackQuery, state: FSMContext, lang: str):
         f"3. {q['options'][2]}"
     )
 
-    await call.message.answer(
-        text,
-        reply_markup=quiz_kb()
-    )
-
+    await call.message.answer(text, reply_markup=quiz_kb())
     await call.answer()
 
 
 @router.callback_query(F.data == "lesson:show_translation")
 async def show_translation(call: CallbackQuery, lang: str):
-
     lesson = LESSONS.get(call.from_user.id)
 
     if not lesson:
@@ -67,7 +60,6 @@ async def show_translation(call: CallbackQuery, lang: str):
         return
 
     translation = lesson.get("translation")
-
     if not translation:
         await call.answer(t("translation_not_found", lang))
         return
@@ -84,9 +76,10 @@ async def show_translation(call: CallbackQuery, lang: str):
 
 @router.callback_query(F.data.startswith("quiz:answer:"))
 async def check_answer(call: CallbackQuery, state: FSMContext, lang: str):
+    # Реальное учебное действие — засчитываем день (один раз, тут).
+    await update_user_activity(call.from_user.id)
 
     choice = int(call.data.split(":")[2]) - 1
-
     data = await state.get_data()
 
     questions = data["questions"]
@@ -94,20 +87,13 @@ async def check_answer(call: CallbackQuery, state: FSMContext, lang: str):
     score = data["score"]
 
     q = questions[index]
-
     user_answer = q["options"][choice]
     correct_answer = q["answer"]
 
     if user_answer == correct_answer:
-
         score += 1
-
-        await call.message.answer(
-            t("correct", lang)
-        )
-
+        await call.message.answer(t("correct", lang))
     else:
-
         await call.message.answer(
             f"{t('incorrect', lang)}\n\n"
             f"{t('correct_answer', lang)}\n{correct_answer}"
@@ -115,23 +101,16 @@ async def check_answer(call: CallbackQuery, state: FSMContext, lang: str):
 
     index += 1
 
-    # все вопросы закончились
     if index >= len(questions):
-
         await call.message.answer(
             f"{t('lesson_finished', lang)}\n\n"
             f"{t('answers_count', lang).format(score=score, total=len(questions))}"
         )
-
         await state.clear()
         await call.answer()
         return
 
-    # сохраняем состояние
-    await state.update_data(
-        question_index=index,
-        score=score
-    )
+    await state.update_data(question_index=index, score=score)
 
     q = questions[index]
     question_label = t("question", lang)
@@ -144,9 +123,5 @@ async def check_answer(call: CallbackQuery, state: FSMContext, lang: str):
         f"3. {q['options'][2]}"
     )
 
-    await call.message.answer(
-        text,
-        reply_markup=quiz_kb()
-    )
-
+    await call.message.answer(text, reply_markup=quiz_kb())
     await call.answer()
