@@ -20,3 +20,11 @@ class User(Base):
     # Счётчик уроков за день (защита от перерасхода API).
     lessons_today = Column(Integer, default=0)
     lessons_date = Column(Date, nullable=True)
+    # Добавь в класс User (в app/database/models/user.py),
+    # рядом с lessons_today / lessons_date:
+
+    # Счётчик проверок текста за день (своя пара, отдельно от уроков).
+    checks_today = Column(Integer, default=0)
+    checks_date = Column(Date, nullable=True)
+
+# (Date уже импортирован вверху, мы добавляли его для lessons_date)

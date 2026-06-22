@@ -45,4 +45,13 @@ MESSAGES = {
     "lesson_limit_reached": "Lesson limit reached for today (3 per day). Come back tomorrow!",
     "repeat_button": "🔁 Repeat words",
     "repeat_reminder": "📚 Don't forget to review previous words! Ready to review: {count} words",
+    "check_button": "📝 Check text",
+    "check_prompt": "Write a sentence or text in English — I'll find mistakes, correct them, and explain the rules.",
+    "check_analyzing": "🔍 Checking...",
+    "check_corrected": "Corrected version:",
+    "check_mistakes": "Mistakes analysis:",
+    "check_empty": "Send a text in English for checking.",
+    "check_too_long": "Too long text. Maximum {max} characters at once.",
+    "check_failed": "Failed to check text, try again.",
+    "check_limit_reached": "Text check limit reached for today (5 per day). Come back tomorrow!",
 }

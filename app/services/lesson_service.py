@@ -12,6 +12,7 @@ from app.database.models.user import User
 from app.database.models.vocab import Vocab
 from app.services.ai import generate_ai_lesson
 from app.services.memory import LESSONS
+from app.config import ADMIN_IDS
 
 TZ = ZoneInfo("Europe/Moscow")
 DAILY_LIMIT = 3  # сколько уроков в день можно сгенерировать вручную
@@ -20,11 +21,15 @@ DAILY_LIMIT = 3  # сколько уроков в день можно сгене
 async def check_and_increment_limit(telegram_id: int) -> bool:
     """
     Проверяет дневной лимит уроков.
-    Возвращает True если можно делать урок (и увеличивает счётчик),
-    False если лимит исчерпан.
+    Админы (ADMIN_IDS) — без ограничений.
+    Возвращает True если можно делать урок.
     """
+    # Безлимит для админов (для тестирования / премиум в будущем).
+    if telegram_id in ADMIN_IDS:
+        return True
+ 
     today = datetime.now(TZ).date()
-
+ 
     async with AsyncSessionLocal() as session:
         result = await session.execute(
             select(User).where(User.telegram_id == telegram_id)
@@ -32,20 +37,19 @@ async def check_and_increment_limit(telegram_id: int) -> bool:
         user = result.scalar_one_or_none()
         if not user:
             return False
-
-        # Новый день — сбрасываем счётчик.
+ 
         if user.lessons_date != today:
             user.lessons_today = 0
             user.lessons_date = today
-
+ 
         if user.lessons_today >= DAILY_LIMIT:
-            await session.commit()  # сохраним сброс даты если он был
+            await session.commit()
             return False
-
+ 
         user.lessons_today += 1
         await session.commit()
         return True
-
+ 
 
 async def create_lesson_for_user(user: User) -> dict:
     """

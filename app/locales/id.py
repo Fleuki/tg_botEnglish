@@ -45,4 +45,13 @@ MESSAGES = {
     "lesson_limit_reached": "Batas pelajaran harian tercapai (3 per hari). Kembali besok!",
     "repeat_button": "🔁 Mengulang kata-kata",
     "repeat_reminder": "📚 Jangan lupa mengulang kata-kata sebelumnya! Siap untuk mengulang: {count} kata",
+    "check_button": "📝 Memeriksa teks",
+    "check_prompt": "Tulis sebuah kalimat atau teks dalam bahasa Inggris — saya akan menemukan kesalahan, membetulkan, dan menjelaskan aturan.",
+    "check_analyzing": "🔍 Memeriksa...",
+    "check_corrected": "Versi yang sudah diperbaiki:",
+    "check_mistakes": "Analisis kesalahan:",
+    "check_empty": "Kirimkan teks dalam bahasa Inggris untuk memeriksa.",
+    "check_too_long": "Teks terlalu panjang. Maksimum {max} karakter sekaligus.",
+    "check_failed": "Gagal memeriksa teks, coba lagi.",
+    "check_limit_reached": "Batas pemeriksaan teks harian tercapai (5 per hari). Kembali besok!",
 }

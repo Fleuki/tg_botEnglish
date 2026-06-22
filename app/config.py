@@ -5,7 +5,14 @@ load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# Добавь в app/config.py (например после OPENAI_API_KEY):
 
+# ID администраторов через запятую в .env: ADMIN_IDS=785630289
+# Для них не действует дневной лимит уроков.
+_admin_raw = os.getenv("ADMIN_IDS", "")
+ADMIN_IDS = [
+    int(x) for x in _admin_raw.replace(" ", "").split(",") if x
+]
 # ── Логика выбора базы данных ──────────────────────────────
 # 1. Если задана переменная DATABASE_URL (так делает Render) — используем её.
 # 2. Иначе, если заданы отдельные DB_* переменные — собираем PostgreSQL URL.
