@@ -167,8 +167,6 @@ async def menu_cards(call: CallbackQuery, lang: str):
 async def menu_stats(call: CallbackQuery, lang: str):
     telegram_id = call.from_user.id
     
-    # Обновляем активность
-    streak = await update_user_activity(telegram_id)
     
     # Получаем статистику
     stats = await get_user_stats(telegram_id)
