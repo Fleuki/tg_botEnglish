@@ -1,16 +1,25 @@
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from app.database.db import AsyncSessionLocal
 from app.database.models.vocab import Vocab
 from app.bot import bot
 from app.keyboards.srs import srs_card_kb
 from app.locales import t
-from zoneinfo import ZoneInfo
-from sqlalchemy import func
 
 REVIEW_STAGES = [1, 3, 7, 14, 30]
+
+# Единое время для всего бота — Москва.
+# Раньше тут смешивались utcnow() и now(TZ), из-за чего слова
+# то "не находились", то "находились" — отсюда баг с карточками.
+TZ = ZoneInfo("Europe/Moscow")
+
+
+def now_msk():
+    """Текущее московское время без tzinfo (naive) — в одной шкале с next_review."""
+    return datetime.now(TZ).replace(tzinfo=None)
 
 
 async def get_next_vocab(telegram_id: int):
@@ -20,12 +29,11 @@ async def get_next_vocab(telegram_id: int):
             .where(Vocab.telegram_id == telegram_id)
             .where(
                 (Vocab.next_review == None) |
-                (Vocab.next_review <= datetime.utcnow())
+                (Vocab.next_review <= now_msk())
             )
             .order_by(Vocab.next_review.asc().nullsfirst())
             .limit(1)
         )
-
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -44,14 +52,14 @@ async def update_srs(vocab_id: int, correct: bool):
         if correct:
             vocab.stage += 1
             if vocab.stage < len(REVIEW_STAGES):
-                vocab.next_review = datetime.utcnow() + timedelta(
+                vocab.next_review = now_msk() + timedelta(
                     days=REVIEW_STAGES[vocab.stage]
                 )
             else:
-                vocab.next_review = None
+                vocab.next_review = None  # слово выучено
         else:
             vocab.stage = 0
-            vocab.next_review = datetime.utcnow() + timedelta(days=1)
+            vocab.next_review = now_msk() + timedelta(days=1)
 
         await session.commit()
 
@@ -70,12 +78,8 @@ async def send_next_card(telegram_id: int, lang: str = "en"):
     )
 
 
-TZ = ZoneInfo("Europe/Moscow")
-
-
 async def count_due_words(telegram_id: int) -> int:
     """Сколько слов готово к повторению прямо сейчас (по московскому времени)."""
-    now = datetime.now(TZ).replace(tzinfo=None)
     async with AsyncSessionLocal() as session:
         stmt = (
             select(func.count())
@@ -83,7 +87,7 @@ async def count_due_words(telegram_id: int) -> int:
             .where(Vocab.telegram_id == telegram_id)
             .where(
                 (Vocab.next_review == None) |
-                (Vocab.next_review <= now)
+                (Vocab.next_review <= now_msk())
             )
         )
         result = await session.execute(stmt)
