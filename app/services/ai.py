@@ -186,11 +186,19 @@ Vocabulary translations must be in the same language as the full translation.
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.85,
+                temperature=0.6,
+                max_tokens=1500,
+                response_format={"type": "json_object"},
             )
-
+ 
             content = response.choices[0].message.content
+ 
+            # Защита от пустого ответа (была причина fallback через раз)
+            if not content or not content.strip():
+                raise ValueError("Empty response from model")
+ 
             data = json.loads(content)
+ 
 
             print("🔥 RAW GPT RESPONSE:")
             print(content)
