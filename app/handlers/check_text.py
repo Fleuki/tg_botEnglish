@@ -98,11 +98,13 @@ async def process_check(message: Message, state: FSMContext, lang: str):
         return
 
     # Формируем ответ
+    tip = result.get("tip", "")
+
     if not result["has_errors"]:
         reply = f"✅ {result.get('praise', '')}"
-        # если предложили более естественный вариант
-        if result["corrected"].strip() != text:
-            reply += f"\n\n💡 {result['corrected']}"
+        # мягкая заметка про мелочь (заглавная I, точка и т.п.)
+        if tip:
+            reply += f"\n\n✏️ {tip}"
     else:
         reply = f"📝 {t('check_corrected', lang)}\n{result['corrected']}\n\n"
         reply += f"🔍 {t('check_mistakes', lang)}\n"
@@ -111,6 +113,9 @@ async def process_check(message: Message, state: FSMContext, lang: str):
                 f"\n{i}. ❌ {e['wrong']} → ✅ {e['right']}\n"
                 f"   📖 {e['rule']}\n"
             )
+        # мягкая заметка идёт после разбора, до похвалы
+        if tip:
+            reply += f"\n✏️ {tip}\n"
         if result.get("praise"):
             reply += f"\n{result['praise']}"
 
