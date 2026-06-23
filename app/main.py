@@ -14,6 +14,7 @@ from app.handlers.menu import router as menu_router
 from app.middlewares.i18n import I18nMiddleware
 from app.handlers import settings
 from app.handlers import check_text
+from app.handlers import scene
 
 
 dp = Dispatcher()
@@ -28,6 +29,7 @@ dp.include_router(settings.router)
 dp.include_router(menu_router)
 dp.include_router(lesson_router)
 dp.include_router(srs_router)
+dp.include_router(scene.router)
 dp.include_router(check_text.router)
 
 async def set_commands():
@@ -36,6 +38,8 @@ async def set_commands():
         BotCommand(command="start", description="Регистрация / перезапуск"),
         BotCommand(command="menu", description="Главное меню"),
         BotCommand(command="settings", description="Настройки профиля"),
+        BotCommand(command="scene", description="Сценка: кафе в Лондоне"),
+        BotCommand(command="stop", description="Завершить сценку"),
     ]
     await bot.set_my_commands(commands)
 
