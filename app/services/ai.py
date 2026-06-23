@@ -293,12 +293,17 @@ Rules:
 """
 
 
-async def check_user_text(text: str, native_language: str) -> dict:
+async def check_user_text(
+    text: str,
+    native_language: str,
+    *,
+    context: str | None = None,
+) -> dict:
     """Проверяет текст пользователя на ошибки. Возвращает разбор в виде dict."""
-    user_prompt = (
-        f"Student's native language: {native_language}\n\n"
-        f"Check this English text:\n\n{text}"
-    )
+    user_prompt = f"Student's native language: {native_language}\n\n"
+    if context:
+        user_prompt += f"Additional context:\n{context}\n\n"
+    user_prompt += f"Check this English text:\n\n{text}"
 
     try:
         response = await client.chat.completions.create(
@@ -330,3 +335,20 @@ async def check_user_text(text: str, native_language: str) -> dict:
             "praise": "",
             "_error": True,  # флаг что проверка не удалась
         }
+
+
+async def scene_chat(messages: list[dict[str, str]]) -> str | None:
+    """Диалог в сценке: отправляет историю в gpt-4o, возвращает ответ бариста."""
+    try:
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            temperature=0.7,
+        )
+        content = response.choices[0].message.content
+        if not content or not content.strip():
+            raise ValueError("Empty response from model")
+        return content.strip()
+    except Exception as e:
+        print("scene_chat failed:", e)
+        return None
