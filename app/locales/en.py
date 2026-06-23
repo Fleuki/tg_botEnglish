@@ -32,6 +32,7 @@ MESSAGES = {
     "settings_button": "⚙️ Settings",
     "stats_title": "📊 Your Progress",
     "learned_words": "Words learned",
+    "in_progress": "In progress",
     "daily_streak": "Daily streak",
     "current_level": "Current level",
     "lesson_time_setting": "Lesson time",
@@ -54,4 +55,7 @@ MESSAGES = {
     "check_too_long": "Too long text. Maximum {max} characters at once.",
     "check_failed": "Failed to check text, try again.",
     "check_limit_reached": "Text check limit reached for today (5 per day). Come back tomorrow!",
+    "undo_button": "↩️ Undo",
+    "undo_nothing": "Nothing to undo",
+    "undo_done": "↩️ Undone",
 }

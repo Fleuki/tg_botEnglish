@@ -10,7 +10,7 @@ from app.keyboards.srs import srs_card_kb
 from app.locales import t
 
 REVIEW_STAGES = [1, 3, 7, 14, 30]
-
+LEARNED_STAGE = 4 # слово выучено
 # Единое время для всего бота — Москва.
 # Раньше тут смешивались utcnow() и now(TZ), из-за чего слова
 # то "не находились", то "находились" — отсюда баг с карточками.
@@ -47,23 +47,36 @@ async def update_srs(vocab_id: int, correct: bool):
     async with AsyncSessionLocal() as session:
         vocab = await session.get(Vocab, vocab_id)
         if not vocab:
-            return
+            return None
+
+        # запоминаем состояние ДО изменения — для возможной отмены
+        prev = {"stage": vocab.stage, "next_review": vocab.next_review}
 
         if correct:
             vocab.stage += 1
-            if vocab.stage < len(REVIEW_STAGES):
+            if vocab.stage >= LEARNED_STAGE:
+                vocab.next_review = None
+            else:
                 vocab.next_review = now_msk() + timedelta(
                     days=REVIEW_STAGES[vocab.stage]
                 )
-            else:
-                vocab.next_review = None  # слово выучено
         else:
             vocab.stage = 0
             vocab.next_review = now_msk() + timedelta(days=1)
 
         await session.commit()
+        return prev
 
-
+async def restore_srs(vocab_id: int, stage: int, next_review):
+    """Возвращает слово в прежнее состояние (для кнопки 'Отменить')."""
+    async with AsyncSessionLocal() as session:
+        vocab = await session.get(Vocab, vocab_id)
+        if not vocab:
+            return
+        vocab.stage = stage
+        vocab.next_review = next_review
+        await session.commit()
+        
 async def send_next_card(telegram_id: int, lang: str = "en"):
     vocab = await get_next_vocab(telegram_id)
 
@@ -92,3 +105,9 @@ async def count_due_words(telegram_id: int) -> int:
         )
         result = await session.execute(stmt)
         return result.scalar() or 0
+
+def stage_progress(stage: int) -> str:
+    """Визуальный прогресс слова по стадиям: ▓▓▓░░ 3/5."""
+    total = len(REVIEW_STAGES)          # 5
+    filled = min(stage, total)
+    return "▓" * filled + "░" * (total - filled) + f" {filled}/{total}"

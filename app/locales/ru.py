@@ -32,6 +32,7 @@ MESSAGES = {
     "settings_button": "⚙️ Настройки",
     "stats_title": "📊 Ваш прогресс",
     "learned_words": "Выученных слов",
+    "in_progress": "В изучении",
     "daily_streak": "Дни подряд",
     "current_level": "Текущий уровень",
     "lesson_time_setting": "Время урока",
@@ -54,4 +55,7 @@ MESSAGES = {
     "check_too_long": "Слишком длинный текст. Максимум {max} символов за раз.",
     "check_failed": "Не удалось проверить текст, попробуй ещё раз.",
     "check_limit_reached": "На сегодня лимит проверок исчерпан (5 в день). Возвращайся завтра!",
+    "undo_button": "↩️ Отменить",
+    "undo_nothing": "Нечего отменять",
+    "undo_done": "↩️ Отменено",
 }

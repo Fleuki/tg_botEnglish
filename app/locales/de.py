@@ -32,6 +32,7 @@ MESSAGES = {
     "settings_button": "⚙️ Einstellungen",
     "stats_title": "📊 Dein Fortschritt",
     "learned_words": "Gelernte Wörter",
+    "in_progress": "Wird gelernt",
     "daily_streak": "Tägliche Serie",
     "current_level": "Aktuelles Niveau",
     "lesson_time_setting": "Lektionszeit",
@@ -54,4 +55,8 @@ MESSAGES = {
     "check_too_long": "Zu langer Text. Maximale Länge: {max} Zeichen.",
     "check_failed": "Text konnte nicht geprüft werden, versuche es erneut.",
     "check_limit_reached": "Textprüfungslimit für heute erreicht (5 pro Tag). Komm morgen wieder!",
+    "undo_button": "↩️ Rückgängig",
+    "undo_nothing": "Nichts rückgängig zu machen",
+    "undo_done": "↩️ Rückgängig gemacht",
+
 }

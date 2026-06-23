@@ -31,3 +31,11 @@ def srs_reminder_kb(lang: str = "en"):
     kb.button(text=t("repeat_button", lang), callback_data="menu:cards")
     kb.adjust(1)
     return kb.as_markup()
+
+def srs_card_with_undo_kb(vocab_id: int, prev_vocab_id: int, lang: str = "en"):
+    """Карточка + кнопка отмены предыдущего ответа."""
+    kb = InlineKeyboardBuilder()
+    kb.button(text=t("show_word_button", lang), callback_data=f"srs:show:{vocab_id}")
+    kb.button(text=t("undo_button", lang), callback_data=f"srs:undo:{prev_vocab_id}")
+    kb.adjust(1)
+    return kb.as_markup()
