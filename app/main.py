@@ -15,6 +15,7 @@ from app.middlewares.i18n import I18nMiddleware
 from app.handlers import settings
 from app.handlers import check_text
 
+
 dp = Dispatcher()
 
 dp.update.middleware(I18nMiddleware())
