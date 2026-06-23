@@ -80,6 +80,7 @@ async def menu_stats(call: CallbackQuery, lang: str):
     stats_text = (
         f"{t('stats_title', lang)}\n\n"
         f"📚 {t('learned_words', lang)}: {stats['learned_words']}\n"
+        f"📖 {t('in_progress', lang)}: {stats['in_progress']}\n"
         f"🔥 {t('daily_streak', lang)}: {stats['streak_days']} {t('days', lang)}\n"
         f"🎯 {t('current_level', lang)}: {stats['level']}\n"
         f"⏰ {t('lesson_time_setting', lang)}: {stats['lesson_time']}\n"
