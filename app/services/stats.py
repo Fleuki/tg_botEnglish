@@ -62,6 +62,7 @@ async def get_user_stats(telegram_id: int):
         if not user:
             return {
                 "learned_words": 0,
+                "in_progress": 0,
                 "streak_days": 0,
                 "level": "A1",
                 "lesson_time": "Not set"
@@ -74,9 +75,27 @@ async def get_user_stats(telegram_id: int):
         vocab_result = await session.execute(vocab_stmt)
         learned_words = len(vocab_result.scalars().all())
 
+        in_progress_stmt = select(Vocab).where(
+            Vocab.telegram_id == telegram_id,
+            Vocab.next_review != None
+        )
+        in_progress_result = await session.execute(in_progress_stmt)
+        in_progress = len(in_progress_result.scalars().all())
+
         return {
             "learned_words": learned_words,
+            "in_progress": in_progress,
             "streak_days": user.streak_days or 0,
             "level": user.level or "A1",
             "lesson_time": user.lesson_time or "Not set"
         }
+
+async def get_in_progress_count(telegram_id: int):
+    """Слова, которые ещё изучаются: есть в базе, но не выучены."""
+    async with AsyncSessionLocal() as session:
+        stmt = select(Vocab).where(
+            Vocab.telegram_id == telegram_id,
+            Vocab.next_review != None
+        )
+        result = await session.execute(stmt)
+        return len(result.scalars().all())

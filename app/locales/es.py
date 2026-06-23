@@ -32,6 +32,7 @@ MESSAGES = {
     "settings_button": "⚙️ Configuración",
     "stats_title": "📊 Tu progreso",
     "learned_words": "Palabras aprendidas",
+    "in_progress": "En estudio",
     "daily_streak": "Racha diaria",
     "current_level": "Nivel actual",
     "lesson_time_setting": "Hora de la lección",
@@ -54,4 +55,7 @@ MESSAGES = {
     "check_too_long": "Texto demasiado largo. Máximo {max} caracteres a la vez.",
     "check_failed": "No se pudo comprobar el texto, inténtalo de nuevo.",
     "check_limit_reached": "Límite de comprobaciones de texto alcanzado para hoy (5 por día). Vuelve mañana!",
+    "undo_button": "↩️ Deshacer",
+    "undo_nothing": "Nada que deshacer",
+    "undo_done": "↩️ Deshecho",
 }
