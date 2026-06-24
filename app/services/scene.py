@@ -31,9 +31,15 @@ SCENE_CHECK_CONTEXT = (
     "tip=\"\", explanations=[]. Silence is better than a false note. "
     "3) Before any note: verify the wrong fragment (or the letter/word you mention) "
     "is really present in the line. If not — drop that note entirely. "
-    "4) Do not mention rules that do not apply (e.g. never mention capital 'I' "
-    "unless the pronoun 'I' actually appears in the line). "
-    "Every 'wrong' field must be an exact substring of the student's line."
+    "4) The student's line is the ONLY source of truth — never rely on \"typical\" "
+    "mistakes. Before any note, verify the exact wrong fragment appears in the line "
+    "in that exact form (case-sensitive). "
+    "CAPITAL 'I' OVERRIDE (overrides any default tip-about-I rule): "
+    "NEVER mention capital 'I' by default. Leave tip=\"\" unless the line contains "
+    "standalone lowercase 'i' as its own word (e.g. \"i think\", \"can i get\"). "
+    "If 'I' is already capital — including I'd, I'm, I'll, I like — stay silent; "
+    "do NOT add a tip. "
+    "Every 'wrong' field must be an exact case-sensitive substring of the student's line."
 )
 
 MAX_SCENE_NOTES = 4
@@ -63,7 +69,11 @@ def _fragment_in_line(fragment: str, line: str) -> bool:
     fragment = fragment.strip()
     if not fragment:
         return False
-    return fragment.lower() in line.lower()
+    return fragment in line
+
+
+def _has_lowercase_i_pronoun(line: str) -> bool:
+    return bool(re.search(r"(?<![A-Za-z])i(?![A-Za-z])", line))
 
 
 def _tip_about_capital_i(tip: str) -> bool:
@@ -72,17 +82,23 @@ def _tip_about_capital_i(tip: str) -> bool:
         return False
     return any(
         word in tip_lower
-        for word in ("заглавн", "больш", "capital", "letter", "букв", "always", "всегда")
+        for word in (
+            "заглавн", "больш", "capital", "letter", "букв", "always", "всегда",
+            "with a capital", "с большой",
+        )
     )
 
 
 def _note_is_grounded(original: str, result: dict) -> bool:
     for explanation in result.get("explanations") or []:
-        if not _fragment_in_line(explanation.get("wrong", ""), original):
+        wrong = explanation.get("wrong", "")
+        if not _fragment_in_line(wrong, original):
+            return False
+        if wrong.strip() == "i" and not _has_lowercase_i_pronoun(original):
             return False
 
     tip = (result.get("tip") or "").strip()
-    if tip and _tip_about_capital_i(tip) and not re.search(r"\bi\b", original, re.IGNORECASE):
+    if tip and _tip_about_capital_i(tip) and not _has_lowercase_i_pronoun(original):
         return False
 
     corrected = (result.get("corrected") or original).strip()
@@ -123,6 +139,13 @@ def _scene_note(original: str, result: dict) -> str | None:
     return None
 
 
+def _note_dedup_key(note: str) -> str:
+    parts = note.split("\n", 1)
+    if len(parts) > 1 and parts[1].strip():
+        return parts[1].strip().lower()
+    return parts[0].strip().lower()
+
+
 async def build_scene_recap(history: list[dict[str, str]], native_language: str) -> str | None:
     """Проверяет реплики пользователя и собирает короткий разбор сценки."""
     user_lines = [m["content"] for m in history if m["role"] == "user"]
@@ -137,13 +160,19 @@ async def build_scene_recap(history: list[dict[str, str]], native_language: str)
     )
 
     notes: list[tuple[int, str]] = []
+    seen_keys: set[str] = set()
     for line, result in zip(user_lines, results):
         if result.get("_error"):
             continue
         note = _scene_note(line, result)
-        if note:
-            priority = 0 if result.get("has_errors") else 1
-            notes.append((priority, note))
+        if not note:
+            continue
+        dedup_key = _note_dedup_key(note)
+        if dedup_key in seen_keys:
+            continue
+        seen_keys.add(dedup_key)
+        priority = 0 if result.get("has_errors") else 1
+        notes.append((priority, note))
 
     if not notes:
         return "Разбор сценки ✏️\n\nОтлично, тебя везде поняли! 👏"
