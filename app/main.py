@@ -38,7 +38,7 @@ async def set_commands():
         BotCommand(command="start", description="Регистрация / перезапуск"),
         BotCommand(command="menu", description="Главное меню"),
         BotCommand(command="settings", description="Настройки профиля"),
-        BotCommand(command="scene", description="Сценка: кафе в Лондоне"),
+        BotCommand(command="scene", description="Выбери сценку"),
         BotCommand(command="stop", description="Завершить сценку"),
     ]
     await bot.set_my_commands(commands)

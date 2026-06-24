@@ -10,6 +10,7 @@ class User(Base):
     telegram_id = Column(BigInteger, unique=True)
     interface_language = Column(String, default="en")
     native_language = Column(String)
+    target_language = Column(String, default="en", server_default="en")
     level = Column(String)
     lesson_time = Column(String)
     last_activity_date = Column(DateTime, default=datetime.utcnow)

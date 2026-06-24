@@ -13,6 +13,7 @@ from app.keyboards.settings import (
     settings_menu_kb,
     interface_lang_inline_kb,
     level_inline_kb,
+    target_language_settings_kb,
 )
 from app.locales import t
 
@@ -88,12 +89,68 @@ async def save_interface(call: CallbackQuery):
 
 
 # ────────────────────────────────────────────────
+# ИЗУЧАЕМЫЙ ЯЗЫК — выбор кнопкой, затем переспрос уровня
+# ────────────────────────────────────────────────
+@router.callback_query(F.data == "set:target")
+async def choose_target_language(call: CallbackQuery, lang: str):
+    await call.message.edit_text(
+        t("choose_target_language", lang),
+        reply_markup=target_language_settings_kb(lang),
+    )
+    await call.answer()
+
+
+@router.callback_query(F.data.startswith("settarget:"))
+async def save_target_language(call: CallbackQuery, state: FSMContext, lang: str, user: User):
+    new_target = call.data.split(":")[1]
+    current = (user.target_language if user else None) or "en"
+
+    if new_target == current:
+        await call.message.edit_text(
+            t("target_unchanged", lang),
+            reply_markup=settings_menu_kb(lang),
+        )
+        await call.answer()
+        return
+
+    await update_user_field(call.from_user.id, "target_language", new_target)
+    await state.set_state(SettingsState.edit_level_after_target)
+
+    lang_name = t(f"target_lang_name_{new_target}", lang)
+    await call.message.edit_text(
+        t("level", lang).format(language=lang_name),
+        reply_markup=level_inline_kb(),
+    )
+    await call.answer()
+
+
+@router.callback_query(
+    SettingsState.edit_level_after_target,
+    F.data.startswith("setlevel:"),
+)
+async def save_level_after_target_change(call: CallbackQuery, state: FSMContext, lang: str, user: User):
+    new_level = call.data.split(":")[1]
+    await update_user_field(call.from_user.id, "level", new_level)
+    await state.clear()
+
+    target = (user.target_language if user else None) or "en"
+    language = t(f"target_study_{target}", lang)
+    await call.message.edit_text(
+        t("target_changed", lang).format(language=language),
+        reply_markup=settings_menu_kb(lang),
+    )
+    await call.answer("✅")
+
+
+# ────────────────────────────────────────────────
 # УРОВЕНЬ — выбор кнопкой, меняется сразу
 # ────────────────────────────────────────────────
 @router.callback_query(F.data == "set:level")
-async def choose_level(call: CallbackQuery, lang: str):
+async def choose_level(call: CallbackQuery, lang: str, user: User):
+    target = (user.target_language if user else None) or "en"
+    lang_name = t(f"target_lang_name_{target}", lang)
     await call.message.edit_text(
-        t("level", lang),
+        t("level", lang).format(language=lang_name),
         reply_markup=level_inline_kb(),
     )
     await call.answer()
