@@ -63,10 +63,14 @@ async def menu_lesson(call: CallbackQuery, lang: str):
 
 
 @router.callback_query(F.data == "menu:cards")
-async def menu_cards(call: CallbackQuery, lang: str):
+async def menu_cards(call: CallbackQuery, lang: str, user: User):
     await call.answer()
     from app.services.srs import send_next_card
-    await send_next_card(call.from_user.id, lang)
+    await send_next_card(
+        call.from_user.id,
+        lang,
+        target_language=(user.target_language if user else None) or "en",
+    )
 
 
 @router.callback_query(F.data == "menu:stats")

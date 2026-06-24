@@ -72,6 +72,10 @@ ADD_COLUMNS_SQL = [
         ALTER TABLE users
         ADD COLUMN IF NOT EXISTS checks_date DATE
     """),
+    text("""
+        ALTER TABLE vocab
+        ADD COLUMN IF NOT EXISTS target_language VARCHAR NOT NULL DEFAULT 'en'
+    """),
 ]
 
 FILL_NULLS_SQL = [
@@ -81,6 +85,7 @@ FILL_NULLS_SQL = [
     text("UPDATE users SET preferred_topic = 'general' WHERE preferred_topic IS NULL"),
     text("UPDATE users SET lessons_today = 0 WHERE lessons_today IS NULL"),
     text("UPDATE users SET checks_today = 0 WHERE checks_today IS NULL"),
+    text("UPDATE vocab SET target_language = 'en' WHERE target_language IS NULL"),
 ]
 
 
