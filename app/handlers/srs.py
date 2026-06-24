@@ -1,6 +1,7 @@
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
+from app.database.models.user import User
 from app.keyboards.srs import srs_answer_kb, srs_card_with_undo_kb
 from app.services.srs import (
     send_next_card, get_vocab, update_srs, restore_srs, get_next_vocab
@@ -11,10 +12,18 @@ from app.locales import t
 router = Router()
 
 
+def _target_language(user: User | None) -> str:
+    return (user.target_language if user else None) or "en"
+
+
 @router.callback_query(F.data == "lesson:start_cards")
-async def start_cards(call: CallbackQuery, state: FSMContext, lang: str):
+async def start_cards(call: CallbackQuery, state: FSMContext, lang: str, user: User):
     await update_user_activity(call.from_user.id)
-    await send_next_card(call.from_user.id, lang)
+    await send_next_card(
+        call.from_user.id,
+        lang,
+        target_language=_target_language(user),
+    )
     await call.answer()
 
 
@@ -32,9 +41,12 @@ async def show_word(call: CallbackQuery, lang: str):
     await call.answer()
 
 
-async def _answer_and_next(call, state, lang, vocab_id, correct, toast_key):
+async def _answer_and_next(
+    call, state, lang, user, vocab_id, correct, toast_key,
+):
     """Общая логика для 'знаю'/'не знаю': применяем, запоминаем для отмены,
     показываем следующую карточку с кнопкой отмены."""
+    target = _target_language(user)
     prev = await update_srs(vocab_id, correct=correct)
 
     # запоминаем в FSM, что можно откатить
@@ -46,7 +58,7 @@ async def _answer_and_next(call, state, lang, vocab_id, correct, toast_key):
         )
 
     # следующая карточка
-    next_vocab = await get_next_vocab(call.from_user.id)
+    next_vocab = await get_next_vocab(call.from_user.id, target)
     if not next_vocab:
         await call.message.answer(t("cards_done", lang))
         await call.answer(t(toast_key, lang))
@@ -60,15 +72,15 @@ async def _answer_and_next(call, state, lang, vocab_id, correct, toast_key):
 
 
 @router.callback_query(F.data.startswith("srs:know:"))
-async def know(call: CallbackQuery, state: FSMContext, lang: str):
+async def know(call: CallbackQuery, state: FSMContext, lang: str, user: User):
     vocab_id = int(call.data.split(":")[2])
-    await _answer_and_next(call, state, lang, vocab_id, True, "correct")
+    await _answer_and_next(call, state, lang, user, vocab_id, True, "correct")
 
 
 @router.callback_query(F.data.startswith("srs:dont:"))
-async def dont(call: CallbackQuery, state: FSMContext, lang: str):
+async def dont(call: CallbackQuery, state: FSMContext, lang: str, user: User):
     vocab_id = int(call.data.split(":")[2])
-    await _answer_and_next(call, state, lang, vocab_id, False, "repeat_tomorrow")
+    await _answer_and_next(call, state, lang, user, vocab_id, False, "repeat_tomorrow")
 
 
 @router.callback_query(F.data.startswith("srs:undo:"))

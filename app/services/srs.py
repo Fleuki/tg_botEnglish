@@ -22,11 +22,13 @@ def now_msk():
     return datetime.now(TZ).replace(tzinfo=None)
 
 
-async def get_next_vocab(telegram_id: int):
+async def get_next_vocab(telegram_id: int, target_language: str = "en"):
+    target_code = target_language or "en"
     async with AsyncSessionLocal() as session:
         stmt = (
             select(Vocab)
             .where(Vocab.telegram_id == telegram_id)
+            .where(Vocab.target_language == target_code)
             .where(
                 (Vocab.next_review == None) |
                 (Vocab.next_review <= now_msk())
@@ -77,8 +79,13 @@ async def restore_srs(vocab_id: int, stage: int, next_review):
         vocab.next_review = next_review
         await session.commit()
         
-async def send_next_card(telegram_id: int, lang: str = "en"):
-    vocab = await get_next_vocab(telegram_id)
+async def send_next_card(
+    telegram_id: int,
+    lang: str = "en",
+    *,
+    target_language: str = "en",
+):
+    vocab = await get_next_vocab(telegram_id, target_language)
 
     if not vocab:
         await bot.send_message(telegram_id, t("cards_done", lang))
@@ -91,13 +98,15 @@ async def send_next_card(telegram_id: int, lang: str = "en"):
     )
 
 
-async def count_due_words(telegram_id: int) -> int:
+async def count_due_words(telegram_id: int, target_language: str = "en") -> int:
     """Сколько слов готово к повторению прямо сейчас (по московскому времени)."""
+    target_code = target_language or "en"
     async with AsyncSessionLocal() as session:
         stmt = (
             select(func.count())
             .select_from(Vocab)
             .where(Vocab.telegram_id == telegram_id)
+            .where(Vocab.target_language == target_code)
             .where(
                 (Vocab.next_review == None) |
                 (Vocab.next_review <= now_msk())

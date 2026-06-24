@@ -68,13 +68,16 @@ async def create_lesson_for_user(user: User) -> dict:
 
     LESSONS[user.telegram_id] = lesson_data
 
-    # Сохраняем новые слова в словарь пользователя.
+    target_code = user.target_language or "en"
+
+    # Сохраняем новые слова в словарь пользователя (на изучаемом языке).
     async with AsyncSessionLocal() as session:
         for v in lesson_data["vocab"]:
             existing = await session.execute(
                 select(Vocab).where(
                     Vocab.telegram_id == user.telegram_id,
-                    Vocab.word == v["word"]
+                    Vocab.word == v["word"],
+                    Vocab.target_language == target_code,
                 )
             )
             if not existing.scalar_one_or_none():
@@ -83,6 +86,7 @@ async def create_lesson_for_user(user: User) -> dict:
                         telegram_id=user.telegram_id,
                         word=v["word"],
                         translation=v["translation"],
+                        target_language=target_code,
                         stage=0,
                         next_review=datetime.now(TZ).replace(tzinfo=None)
                     )

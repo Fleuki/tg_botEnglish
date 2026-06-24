@@ -13,12 +13,14 @@ from app.services.scene import (
     SCENES,
     SCENE_HISTORIES,
     SCENE_TARGET_LANG,
+    apply_scene_opening,
     build_scene_recap,
     get_scene_opening,
     is_scene_active,
     start_scene,
     stop_scene,
 )
+from app.services.prompts import language_name
 
 router = Router()
 
@@ -41,6 +43,28 @@ async def cmd_scene(message: Message, state: FSMContext, lang: str):
     )
 
 
+async def _generate_scene_opening(user_id: int, target_language: str) -> str | None:
+    """Первая реплика персонажа на изучаемом языке, если нет готового шаблона."""
+    history = SCENE_HISTORIES.get(user_id)
+    if not history:
+        return None
+
+    lang = language_name(target_language or "en")
+    messages = history + [
+        {
+            "role": "user",
+            "content": (
+                f"[Scene start — internal instruction, not shown to the learner. "
+                f"Say your opening line in {lang} only, 1-2 short sentences, stay in character.]"
+            ),
+        }
+    ]
+    opening = await scene_chat(messages)
+    if opening:
+        apply_scene_opening(user_id, opening)
+    return opening
+
+
 @router.callback_query(F.data.startswith("scene:pick:"))
 async def pick_scene(call: CallbackQuery, state: FSMContext, lang: str):
     scene_id = call.data.split(":")[2]
@@ -53,7 +77,13 @@ async def pick_scene(call: CallbackQuery, state: FSMContext, lang: str):
 
     target = await _user_target_language(call.from_user.id)
     start_scene(call.from_user.id, target, scene_id)
+
     opening = get_scene_opening(scene_id, target)
+    if not opening:
+        opening = await _generate_scene_opening(call.from_user.id, target)
+    if not opening:
+        await call.message.edit_text(t("scene_error", lang))
+        return
 
     await call.message.edit_text(opening)
 

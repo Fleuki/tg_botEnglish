@@ -8,6 +8,6 @@ build:
   useCache: true
 run:
   scriptName: null
-  command: python -m app.main
+  command: python scripts/migrate_add_columns.py
   persistenceMount: /data
   containerPort: 80

@@ -46,7 +46,7 @@ async def send_daily_lessons():
 
         # 2. Если есть слова на повторение — одно деликатное напоминание.
         #    Никакого ежечасного спама: одно сообщение с кнопкой "Повторить".
-        due = await count_due_words(user.telegram_id)
+        due = await count_due_words(user.telegram_id, user.target_language or "en")
         if due > 0:
             await bot.send_message(
                 user.telegram_id,

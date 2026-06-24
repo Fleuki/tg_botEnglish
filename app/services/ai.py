@@ -82,7 +82,7 @@ LEVEL_RULES = {
     },
 
     "B1": {
-        "vocab": "intermediate natural English",
+        "vocab": "intermediate natural vocabulary",
         "story": "7-9 sentences, mixed tenses",
         "topics": ["job interview", "travel problem", "moving", "friend conflict", "work experience"],
         "must_include": [
@@ -243,7 +243,22 @@ IMPORTANT:
             print(f"AI attempt {attempt+1} failed:", e)
             await asyncio.sleep(BASE_DELAY * (attempt + 1))
 
-    return FALLBACK_LESSON
+    return get_fallback_lesson(target_code)
+
+
+def get_fallback_lesson(target_code: str = "en") -> dict:
+    """Fallback при сбое GPT; слова — на изучаемом языке (для en — старый шаблон)."""
+    if (target_code or "en") == "en":
+        return FALLBACK_LESSON
+
+    target = language_name(target_code)
+    return {
+        "title": f"Daily {target} Lesson",
+        "text": f"[Lesson generation failed. Please try again later.]",
+        "translation": "",
+        "questions": [],
+        "vocab": [],
+    }
 
 # Добавь в конец app/services/ai.py
 # (client, AsyncOpenAI и т.д. уже импортированы вверху файла)

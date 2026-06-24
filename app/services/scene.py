@@ -9,6 +9,11 @@ from app.services.prompts import language_name
 SCENE_LOCATIONS = {
     "en": "London",
     "ru": "Moscow",
+    "fr": "Paris",
+    "de": "Berlin",
+    "es": "Madrid",
+    "pt_br": "São Paulo",
+    "id": "Jakarta",
 }
 
 MAX_SCENE_NOTES = 4
@@ -211,10 +216,11 @@ SCENES: dict[str, SceneDef] = {
 }
 
 
-def get_scene_opening(scene_id: str, target_language: str) -> str:
+def get_scene_opening(scene_id: str, target_language: str) -> str | None:
+    """Готовое приветствие сценки. None — нет шаблона для этого языка (сгенерируем через GPT)."""
     scene = SCENES.get(scene_id, SCENES["cafe"])
     code = target_language or "en"
-    return scene["openings"].get(code, scene["openings"]["en"])
+    return scene["openings"].get(code)
 
 
 def get_scene_check_context(target_language: str) -> str:
@@ -287,13 +293,25 @@ def start_scene(
     scene = SCENES.get(scene_id, SCENES["cafe"])
     code = target_language or "en"
     SCENE_TARGET_LANG[user_id] = code
-    opening = get_scene_opening(scene_id, code)
-    history = [
+    history: list[dict[str, str]] = [
         {"role": "system", "content": scene["get_system_prompt"](code)},
-        {"role": "assistant", "content": opening},
     ]
+    opening = get_scene_opening(scene_id, code)
+    if opening:
+        history.append({"role": "assistant", "content": opening})
     SCENE_HISTORIES[user_id] = history
     return history
+
+
+def apply_scene_opening(user_id: int, opening: str) -> None:
+    """Сохраняет первую реплику персонажа в историю сценки."""
+    history = SCENE_HISTORIES.get(user_id)
+    if not history:
+        return
+    if history and history[-1]["role"] == "assistant":
+        history[-1]["content"] = opening
+    else:
+        history.append({"role": "assistant", "content": opening})
 
 
 def stop_scene(user_id: int) -> None:
