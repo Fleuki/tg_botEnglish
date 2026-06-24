@@ -85,7 +85,7 @@ async def menu_stats(call: CallbackQuery, lang: str):
         f"🎯 {t('current_level', lang)}: {stats['level']}\n"
         f"⏰ {t('lesson_time_setting', lang)}: {stats['lesson_time']}\n"
     )
-
+ 
     await call.message.edit_text(stats_text, reply_markup=back_to_menu_kb(lang))
     await call.answer()
 
