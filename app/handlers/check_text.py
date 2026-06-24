@@ -16,6 +16,12 @@ from app.services.ai import check_user_text
 from app.config import ADMIN_IDS
 from app.locales import t
 
+
+def _study_language_label(interface_lang: str, user: User | None) -> str:
+    target = (user.target_language if user else None) or "en"
+    return t(f"target_lang_name_{target}", interface_lang)
+
+
 router = Router()
 
 TZ = ZoneInfo("Europe/Moscow")
@@ -58,22 +64,24 @@ async def can_check(telegram_id: int) -> bool:
 
 # ── Вход в режим проверки ──
 @router.callback_query(F.data == "menu:check")
-async def start_check(call: CallbackQuery, state: FSMContext, lang: str):
+async def start_check(call: CallbackQuery, state: FSMContext, lang: str, user: User):
     await call.answer()
     if not await can_check(call.from_user.id):
         await call.message.answer(t("check_limit_reached", lang))
         return
     await state.set_state(CheckState.waiting_for_text)
-    await call.message.answer(t("check_prompt", lang))
+    language = _study_language_label(lang, user)
+    await call.message.answer(t("check_prompt", lang).format(language=language))
 
 
 # ── Приём текста и проверка ──
 @router.message(CheckState.waiting_for_text)
-async def process_check(message: Message, state: FSMContext, lang: str):
+async def process_check(message: Message, state: FSMContext, lang: str, user: User):
     text = (message.text or "").strip()
+    language = _study_language_label(lang, user)
 
     if not text:
-        await message.answer(t("check_empty", lang))
+        await message.answer(t("check_empty", lang).format(language=language))
         return
 
     if len(text) > MAX_TEXT_LENGTH:
@@ -90,8 +98,9 @@ async def process_check(message: Message, state: FSMContext, lang: str):
         )
         user = result.scalar_one_or_none()
     native = (user.native_language if user else None) or "Russian"
+    target = (user.target_language if user else None) or "en"
 
-    result = await check_user_text(text, native)
+    result = await check_user_text(text, native, target_language=target)
 
     if result.get("_error"):
         await message.answer(t("check_failed", lang))

@@ -59,7 +59,7 @@ async def create_lesson_for_user(user: User) -> dict:
     lesson = await generate_ai_lesson(user)
 
     lesson_data = {
-        "title": lesson.get("title", "📖 Daily English"),
+        "title": lesson.get("title", "📖 Daily lesson"),
         "text": lesson["text"],
         "translation": lesson["translation"],
         "questions": lesson.get("questions", []),

@@ -9,7 +9,7 @@ from app.locales import t
 from aiogram.types import ReplyKeyboardRemove
 from aiogram import F
 from aiogram.types import CallbackQuery
-from app.keyboards.settings import level_register_kb
+from app.keyboards.settings import level_register_kb, target_language_register_kb
 
 router = Router()
 LANGUAGES = {
@@ -46,14 +46,34 @@ async def set_interface_language(call: CallbackQuery, state: FSMContext):
 async def set_native_language(message: Message, state: FSMContext):
     await state.update_data(native_language=message.text)
     data = await state.get_data()
-    await state.set_state(RegisterState.level)
+    iface = data["interface_language"]
+    await state.set_state(RegisterState.target_language)
     await message.answer(
-        t("level", data["interface_language"]),
-        reply_markup=level_register_kb()   # inline вместо Reply
+        t("choose_target_language", iface),
+        reply_markup=target_language_register_kb(iface),
     )
 
+
 # ----------------------------------
-# 3. Уровень английского
+# 3. Изучаемый язык
+# ----------------------------------
+@router.callback_query(RegisterState.target_language, F.data.startswith("regtarget:"))
+async def set_target_language(call: CallbackQuery, state: FSMContext):
+    target = call.data.split(":")[1]
+    await state.update_data(target_language=target)
+    data = await state.get_data()
+    iface = data["interface_language"]
+    lang_name = t(f"target_lang_name_{target}", iface)
+    await state.set_state(RegisterState.level)
+    await call.message.edit_text(
+        t("level", iface).format(language=lang_name),
+        reply_markup=level_register_kb(),
+    )
+    await call.answer()
+
+
+# ----------------------------------
+# 4. Уровень
 # ----------------------------------
 @router.callback_query(RegisterState.level, F.data.startswith("reglevel:"))
 async def set_level(call: CallbackQuery, state: FSMContext):
@@ -67,7 +87,7 @@ async def set_level(call: CallbackQuery, state: FSMContext):
     await call.answer()
  
 # ----------------------------------
-# 4. Время уроков
+# 5. Время уроков
 # ----------------------------------
 @router.message(RegisterState.lesson_time)
 async def set_time(message: Message, state: FSMContext):
@@ -92,6 +112,7 @@ async def set_time(message: Message, state: FSMContext):
 
             user.interface_language = data["interface_language"]
             user.native_language = data["native_language"]
+            user.target_language = data.get("target_language", "en")
             user.level = data["level"]
             user.lesson_time = data["lesson_time"]
 
@@ -102,6 +123,7 @@ async def set_time(message: Message, state: FSMContext):
                     telegram_id=message.from_user.id,
                     interface_language=data["interface_language"],
                     native_language=data["native_language"],
+                    target_language=data.get("target_language", "en"),
                     level=data["level"],
                     lesson_time=data["lesson_time"]
                 )

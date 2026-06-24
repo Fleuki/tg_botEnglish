@@ -1,5 +1,5 @@
 from aiogram import Router, F
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, BufferedInputFile
 from aiogram.fsm.context import FSMContext
 from app.keyboards.lesson import lesson_kb
 from app.keyboards.quiz import quiz_kb
@@ -7,8 +7,12 @@ from app.locales import t
 from app.states.lesson import LessonStates
 from app.services.memory import LESSONS
 from app.services.stats import update_user_activity
+from app.services.ai import text_to_speech
 
 router = Router()
+
+# user_id, для которых уже идёт генерация TTS (защита от двойных нажатий)
+_tts_in_progress: set[int] = set()
 
 
 @router.callback_query(F.data == "lesson:start_questions")
@@ -72,6 +76,53 @@ async def show_translation(call: CallbackQuery, lang: str):
         reply_markup=lesson_kb(lang, show_translation=False)
     )
     await call.answer()
+
+
+@router.callback_query(F.data == "lesson:listen")
+async def listen_lesson(call: CallbackQuery, lang: str):
+    """
+    Озвучка урока по кнопке «Прослушать».
+
+    Поток:
+    1. Урок уже показан текстом (menu/scheduler) — TTS здесь не вызывается.
+    2. Пользователь нажимает кнопку → берём lesson['text'] из RAM (LESSONS).
+    3. Отправляем текст в OpenAI TTS → получаем mp3.
+    4. Шлём mp3 ответом на сообщение с уроком.
+    """
+    lesson = LESSONS.get(call.from_user.id)
+
+    if not lesson:
+        await call.answer(t("lesson_not_found", lang))
+        return
+
+    text = (lesson.get("text") or "").strip()
+    if not text:
+        await call.answer(t("lesson_not_found", lang))
+        return
+
+    user_id = call.from_user.id
+    if user_id in _tts_in_progress:
+        await call.answer(t("tts_already_generating", lang), show_alert=False)
+        return
+
+    _tts_in_progress.add(user_id)
+    await call.answer(t("tts_generating", lang), show_alert=False)
+
+    try:
+        # Вызов TTS — только здесь, по явному действию пользователя.
+        audio = await text_to_speech(text)
+
+        if not audio:
+            await call.message.answer(t("tts_failed", lang))
+            return
+
+        await call.message.answer_audio(
+            BufferedInputFile(audio, filename="lesson.mp3"),
+            title=(lesson.get("title") or "Lesson")[:64],
+            reply_to_message_id=call.message.message_id,
+        )
+    finally:
+        _tts_in_progress.discard(user_id)
 
 
 @router.callback_query(F.data.startswith("quiz:answer:"))

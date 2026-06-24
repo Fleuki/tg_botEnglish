@@ -12,6 +12,11 @@ def lesson_kb(lang: str = "en", show_translation: bool = True):
         )
 
     kb.button(
+        text=t("listen_button", lang),
+        callback_data="lesson:listen"
+    )
+
+    kb.button(
         text=t("questions_button", lang),
         callback_data="lesson:start_questions"
     )

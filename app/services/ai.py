@@ -1,6 +1,7 @@
 import os
 import json
 import asyncio
+import logging
 from app.services.topics import pick_topic
 from openai import AsyncOpenAI
 from sqlalchemy import select
@@ -10,13 +11,13 @@ from app.services.cache import make_prompt_hash
 client = AsyncOpenAI(api_key=os.getenv("AI_TUNNEL_API_KEY"),
     base_url="https://api.aitunnel.ru/v1")
 from app.database.models.user import User
-from app.services.prompts import SYSTEM_PROMPT
+from app.services.prompts import get_system_prompt, language_name
 from app.services.cache import make_prompt_hash, get_cache, set_cache
 # -------------------------
 # FALLBACK (обязательно)
 # -------------------------
 FALLBACK_LESSON = {
-    "title": "Daily English",
+    "title": "Daily Lesson",
 
     "text": """
 Hello! My name is Anna.
@@ -118,6 +119,8 @@ BASE_DELAY = 2  # seconds
 
 async def generate_ai_lesson(user: User) -> dict:
     topic = pick_topic(user)
+    target_code = user.target_language or "en"
+    target_lang = language_name(target_code)
 
     # 🔥 ОДИН ЕДИНЫЙ CACHE KEY
     cache_key = make_prompt_hash(user, topic)
@@ -131,9 +134,10 @@ async def generate_ai_lesson(user: User) -> dict:
         return cached
 
     user_prompt = f"""
-English level: {user.level}
+Target language (language being learned): {target_lang}
+CEFR level in {target_lang}: {user.level}
 
-User native language:
+User native language (for translations only):
 {user.native_language}
 
 Topic:
@@ -141,17 +145,18 @@ Topic:
 
 Create:
 
-1. A title.
-2. A text of 7-10 sentences in English.
-3. Full translation into {user.native_language}.
-4. EXACTLY 3 comprehension questions.
-5. 4-5 vocabulary words from the text.
+1. A title in {target_lang}.
+2. A text of 7-10 sentences in {target_lang}.
+3. Full translation of the text into {user.native_language}.
+4. EXACTLY 3 comprehension questions in {target_lang}.
+5. 4-5 vocabulary words from the text (words in {target_lang}).
 6. Vocabulary translations must be in {user.native_language}.
 7. Do NOT use any other language for translations.
 Return JSON only.
 
 IMPORTANT:
-Vocabulary translations must be in the same language as the full translation.
+- The lesson text and questions must be in {target_lang}.
+- Vocabulary translations must be in the same language as the full translation ({user.native_language}).
 
 """
 
@@ -183,7 +188,7 @@ Vocabulary translations must be in the same language as the full translation.
             response = await client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "system", "content": get_system_prompt(target_code)},
                     {"role": "user", "content": user_prompt}
                 ],
                 temperature=0.6,
@@ -293,23 +298,84 @@ Rules:
 """
 
 
+def get_check_system_prompt(target_language: str) -> str:
+    """Промпт проверки: текст на изучаемом языке, пояснения на родном."""
+    code = target_language or "en"
+    if code == "en":
+        return CHECK_SYSTEM_PROMPT
+
+    target = language_name(code)
+    return f"""
+You are a warm, encouraging {target} teacher checking a student's writing.
+
+The student is learning {target}. Check text written in {target}. Your goal is to help them communicate better — NOT to enforce perfect formatting. Over-correction discourages learners, so flag only mistakes that actually affect understanding or are clearly wrong grammar.
+
+WHAT COUNTS AS A REAL ERROR (flag these in 'explanations'):
+- Grammar that affects meaning: verb tense, agreement, plurals, cases (if applicable).
+- Wrong word choice, or a word that doesn't fit the meaning.
+- Word order that sounds unnatural or wrong.
+- Real spelling mistakes (not just informal style).
+
+WHAT IS NOT A REAL ERROR (do NOT put these in 'explanations', do NOT set has_errors for them, do NOT change them in 'corrected'):
+- A missing period or other end punctuation, especially in short or informal messages.
+- A missing capital letter at the start, in casual short text.
+- Stylistic preferences when the sentence is already correct and clear.
+- Anything a native speaker would understand perfectly and not bother correcting in a friendly chat.
+
+THE GENTLE TIP ('tip' field):
+- Optional ONE small, friendly side note about a minor detail — only when relevant.
+- Phrase it kindly and casually, not like a correction. If nothing worth mentioning, set "tip" to "".
+- 'tip' NEVER affects has_errors and NEVER appears in 'explanations'.
+
+DECISION RULE:
+- has_errors=true ONLY when there is at least one REAL error from the first list.
+- If the only issues are minor formatting things, set has_errors=false, corrected=original, explanations=[], give warm praise, and optionally add a gentle 'tip'.
+
+Return STRICT VALID JSON only. No markdown, no extra text. Schema:
+{{
+  "has_errors": true/false,
+  "corrected": "the corrected version of the full text (or the original if there are no real errors)",
+  "explanations": [
+    {{ "wrong": "the incorrect fragment", "right": "the correct fragment", "rule": "short, simple explanation in the student's native language" }}
+  ],
+  "tip": "an optional gentle note in the student's native language, or empty string",
+  "praise": "one short encouraging sentence in the student's native language"
+}}
+
+Rules:
+- The text being checked is in {target}.
+- Explanations, tip, and praise MUST be written in the student's NATIVE LANGUAGE (given below), so a beginner understands.
+- Keep rule explanations short and simple, no linguistic jargon — like a friend, not a textbook.
+- List at most 5 of the most important real errors. If there are more, pick the ones that matter most for being understood.
+- 'corrected' should fix the real errors but otherwise stay faithful to what the student wrote — keep their informal style.
+
+"""
+
+
 async def check_user_text(
     text: str,
     native_language: str,
     *,
+    target_language: str = "en",
     context: str | None = None,
 ) -> dict:
-    """Проверяет текст пользователя на ошибки. Возвращает разбор в виде dict."""
-    user_prompt = f"Student's native language: {native_language}\n\n"
+    """Проверяет текст на изучаемом языке; пояснения — на native_language."""
+    target_code = target_language or "en"
+    target_lang = language_name(target_code)
+
+    user_prompt = (
+        f"Language being learned (text language): {target_lang}\n"
+        f"Student's native language (for explanations, tip, praise): {native_language}\n\n"
+    )
     if context:
         user_prompt += f"Additional context:\n{context}\n\n"
-    user_prompt += f"Check this English text:\n\n{text}"
+    user_prompt += f"Check this {target_lang} text:\n\n{text}"
 
     try:
         response = await client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": CHECK_SYSTEM_PROMPT},
+                {"role": "system", "content": get_check_system_prompt(target_code)},
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.3,  # для проверки нужна точность, не креатив
@@ -351,4 +417,23 @@ async def scene_chat(messages: list[dict[str, str]]) -> str | None:
         return content.strip()
     except Exception as e:
         print("scene_chat failed:", e)
+        return None
+
+
+async def text_to_speech(text: str) -> bytes | None:
+    """
+    Озвучивает текст через OpenAI TTS (POST /v1/audio/speech).
+    Язык определяется содержимым text (урок уже на target_language).
+    Вызывается только по нажатию «Прослушать», не при генерации урока.
+    """
+    try:
+        response = await client.audio.speech.create(
+            model="gpt-4o-mini-tts",
+            voice="alloy",
+            input=text,
+            response_format="mp3",
+        )
+        return response.content
+    except Exception:
+        logging.exception("TTS error")
         return None

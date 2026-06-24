@@ -4,6 +4,7 @@ from aiogram.fsm.state import State, StatesGroup
 class RegisterState(StatesGroup):
     interface_language = State()
     native_language = State()
+    target_language = State()
     level = State()
     lesson_time = State()
 
@@ -13,3 +14,4 @@ class RegisterState(StatesGroup):
 class SettingsState(StatesGroup):
     edit_native_language = State()
     edit_lesson_time = State()
+    edit_level_after_target = State()
