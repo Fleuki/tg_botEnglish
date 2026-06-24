@@ -22,7 +22,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from app.config import DATABASE_URL
 
@@ -117,6 +117,15 @@ def _print_columns(title: str, columns: list[str]) -> None:
         print("  (no columns found — check that table users exists)")
 
 
+async def _apply_migration(engine: AsyncEngine) -> None:
+    """ALTER + UPDATE in one transaction; rolls back automatically on error."""
+    async with engine.begin() as conn:
+        for stmt in ADD_COLUMNS_SQL:
+            await conn.execute(stmt)
+        for stmt in FILL_NULLS_SQL:
+            await conn.execute(stmt)
+
+
 async def migrate() -> int:
     if not DATABASE_URL:
         print("ERROR: DATABASE_URL is not set.")
@@ -135,15 +144,12 @@ async def migrate() -> int:
     try:
         async with engine.connect() as conn:
             before_columns = await _fetch_columns(conn)
-            _print_columns("Columns BEFORE migration:", before_columns)
+        _print_columns("Columns BEFORE migration:", before_columns)
 
-            print("\nApplying changes in a single transaction...")
-            async with conn.begin():
-                for stmt in ADD_COLUMNS_SQL:
-                    await conn.execute(stmt)
-                for stmt in FILL_NULLS_SQL:
-                    await conn.execute(stmt)
+        print("\nApplying changes in a single transaction...")
+        await _apply_migration(engine)
 
+        async with engine.connect() as conn:
             after_columns = await _fetch_columns(conn)
             user_count = await _fetch_user_count(conn)
 
@@ -153,7 +159,7 @@ async def migrate() -> int:
         return 0
 
     except Exception as exc:
-        print(f"\nERROR: migration failed — transaction rolled back.")
+        print("\nERROR: migration failed — transaction rolled back.")
         print(f"       {type(exc).__name__}: {exc}")
         return 1
 
