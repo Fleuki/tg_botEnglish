@@ -611,3 +611,17 @@ async def text_to_speech(text: str) -> bytes | None:
     except Exception:
         logging.exception("TTS error")
         return None
+
+
+async def speech_to_text(file_path: str) -> str | None:
+    """Распознаёт аудиофайл (ogg/opus от Telegram) в текст через Whisper."""
+    try:
+        with open(file_path, "rb") as audio:
+            response = await client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio,
+            )
+        return (response.text or "").strip() or None
+    except Exception:
+        logging.exception("STT error")
+        return None

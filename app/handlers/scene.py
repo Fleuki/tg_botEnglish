@@ -1,14 +1,18 @@
+import os
+import tempfile
+
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from sqlalchemy import select
 
+from app.bot import bot
 from app.database.db import AsyncSessionLocal
 from app.database.models.user import User
 from app.keyboards.scene import scenes_menu_kb, scene_active_kb
 from app.locales import t
-from app.services.ai import scene_chat
+from app.services.ai import scene_chat, speech_to_text
 from app.services.scene import (
     SCENES,
     SCENE_HISTORIES,
@@ -57,6 +61,20 @@ async def finish_scene(message: Message, user_id: int, lang: str) -> None:
     if recap:
         await message.answer(recap)
     await message.answer(t("scene_ended", lang))
+
+
+async def handle_scene_reply(message: Message, user_id: int, text: str, lang: str) -> None:
+    history = SCENE_HISTORIES[user_id]
+    history.append({"role": "user", "content": text})
+
+    reply = await scene_chat(history)
+    if reply is None:
+        history.pop()
+        await message.answer(t("scene_error", lang))
+        return
+
+    history.append({"role": "assistant", "content": reply})
+    await message.answer(reply, reply_markup=scene_active_kb(lang))
 
 
 @router.message(Command("scene"))
@@ -136,16 +154,25 @@ async def scene_message(message: Message, lang: str):
     text = (message.text or "").strip()
     if not text:
         return
+    await handle_scene_reply(message, message.from_user.id, text, lang)
 
+
+@router.message(F.voice, lambda m: is_scene_active(m.from_user.id))
+async def scene_voice(message: Message, lang: str):
     user_id = message.from_user.id
-    history = SCENE_HISTORIES[user_id]
-    history.append({"role": "user", "content": text})
-
-    reply = await scene_chat(history)
-    if reply is None:
-        history.pop()
-        await message.answer(t("scene_error", lang))
+    tg_file = await bot.get_file(message.voice.file_id)
+    fd, tmp_path = tempfile.mkstemp(suffix=".ogg")
+    os.close(fd)
+    try:
+        await bot.download_file(tg_file.file_path, tmp_path)
+        text = await speech_to_text(tmp_path)
+    finally:
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+    if not text:
+        await message.answer(t("voice_not_recognized", lang))
         return
-
-    history.append({"role": "assistant", "content": reply})
-    await message.answer(reply, reply_markup=scene_active_kb(lang))
+    await message.answer(t("voice_recognized", lang).format(text=text))
+    await handle_scene_reply(message, user_id, text, lang)

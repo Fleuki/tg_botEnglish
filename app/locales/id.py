@@ -97,6 +97,8 @@ MESSAGES = {
     "check_limit_reached": "Batas pemeriksaan teks harian tercapai (5 per hari). Kembali besok!",
     "scene_stop_button": "🏁 Selesaikan adegan",
     "scene_menu_button": "🎭 Adegan",
+    "voice_not_recognized": "Tidak terdengar jelas 🎤 Coba lagi atau ketik pesannya.",
+    "voice_recognized": "🎤 Terdengar: {text}",
     "scene_not_active": "Tidak ada adegan aktif. Ketik /scene untuk memulai.",
     "scene_ended": "Adegan selesai. Sampai jumpa!",
     "scene_error": "Terjadi kesalahan. Coba lagi.",
