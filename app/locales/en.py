@@ -95,6 +95,8 @@ MESSAGES = {
     "check_too_long": "Too long text. Maximum {max} characters at once.",
     "check_failed": "Failed to check text, try again.",
     "check_limit_reached": "Text check limit reached for today (5 per day). Come back tomorrow!",
+    "scene_stop_button": "🏁 End scene",
+    "scene_menu_button": "🎭 Scenes",
     "scene_not_active": "No active scene. Use /scene to start one.",
     "scene_ended": "Scene ended. See you next time!",
     "scene_error": "Sorry, something went wrong. Please try again.",

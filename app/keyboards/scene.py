@@ -13,3 +13,10 @@ def scenes_menu_kb(lang: str):
         )
     kb.adjust(1)
     return kb.as_markup()
+
+
+def scene_active_kb(lang: str = "en"):
+    kb = InlineKeyboardBuilder()
+    kb.button(text=t("scene_stop_button", lang), callback_data="scene:stop")
+    kb.adjust(1)
+    return kb.as_markup()
