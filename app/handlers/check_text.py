@@ -19,7 +19,7 @@ from app.locales import t
 
 def _study_language_label(interface_lang: str, user: User | None) -> str:
     target = (user.target_language if user else None) or "en"
-    return t(f"target_lang_name_{target}", interface_lang)
+    return t(f"target_study_{target}", interface_lang)
 
 
 router = Router()

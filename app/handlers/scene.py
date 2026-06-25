@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from app.database.db import AsyncSessionLocal
 from app.database.models.user import User
-from app.keyboards.scene import scenes_menu_kb
+from app.keyboards.scene import scenes_menu_kb, scene_active_kb
 from app.locales import t
 from app.services.ai import scene_chat
 from app.services.scene import (
@@ -34,6 +34,31 @@ async def _user_target_language(telegram_id: int) -> str:
     return (user.target_language if user else None) or "en"
 
 
+async def finish_scene(message: Message, user_id: int, lang: str) -> None:
+    if not is_scene_active(user_id):
+        await message.answer(t("scene_not_active", lang))
+        return
+
+    history = SCENE_HISTORIES[user_id]
+
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(User).where(User.telegram_id == user_id)
+        )
+        user = result.scalar_one_or_none()
+    native = (user.native_language if user else None) or "Russian"
+    target = SCENE_TARGET_LANG.get(user_id) or (
+        (user.target_language if user else None) or "en"
+    )
+
+    recap = await build_scene_recap(history, native, target, lang)
+    stop_scene(user_id)
+
+    if recap:
+        await message.answer(recap)
+    await message.answer(t("scene_ended", lang))
+
+
 @router.message(Command("scene"))
 async def cmd_scene(message: Message, state: FSMContext, lang: str):
     await state.clear()
@@ -41,6 +66,13 @@ async def cmd_scene(message: Message, state: FSMContext, lang: str):
         t("choose_scene", lang),
         reply_markup=scenes_menu_kb(lang),
     )
+
+
+@router.callback_query(F.data == "menu:scene")
+async def menu_scene(call: CallbackQuery, state: FSMContext, lang: str):
+    await call.answer()
+    await state.clear()
+    await call.message.answer(t("choose_scene", lang), reply_markup=scenes_menu_kb(lang))
 
 
 async def _generate_scene_opening(user_id: int, target_language: str) -> str | None:
@@ -85,34 +117,18 @@ async def pick_scene(call: CallbackQuery, state: FSMContext, lang: str):
         await call.message.edit_text(t("scene_error", lang))
         return
 
-    await call.message.edit_text(opening)
+    await call.message.edit_text(opening, reply_markup=scene_active_kb(lang))
+
+
+@router.callback_query(F.data == "scene:stop")
+async def scene_stop_btn(call: CallbackQuery, lang: str):
+    await call.answer()
+    await finish_scene(call.message, call.from_user.id, lang)
 
 
 @router.message(Command("stop"))
 async def cmd_stop(message: Message, lang: str):
-    user_id = message.from_user.id
-    if not is_scene_active(user_id):
-        await message.answer(t("scene_not_active", lang))
-        return
-
-    history = SCENE_HISTORIES[user_id]
-
-    async with AsyncSessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == user_id)
-        )
-        user = result.scalar_one_or_none()
-    native = (user.native_language if user else None) or "Russian"
-    target = SCENE_TARGET_LANG.get(user_id) or (
-        (user.target_language if user else None) or "en"
-    )
-
-    recap = await build_scene_recap(history, native, target, lang)
-    stop_scene(user_id)
-
-    if recap:
-        await message.answer(recap)
-    await message.answer(t("scene_ended", lang))
+    await finish_scene(message, message.from_user.id, lang)
 
 
 @router.message(F.text, ~F.text.startswith("/"), lambda m: is_scene_active(m.from_user.id))
@@ -132,4 +148,4 @@ async def scene_message(message: Message, lang: str):
         return
 
     history.append({"role": "assistant", "content": reply})
-    await message.answer(reply)
+    await message.answer(reply, reply_markup=scene_active_kb(lang))

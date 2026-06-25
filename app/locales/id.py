@@ -95,6 +95,8 @@ MESSAGES = {
     "check_too_long": "Teks terlalu panjang. Maksimum {max} karakter sekaligus.",
     "check_failed": "Gagal memeriksa teks, coba lagi.",
     "check_limit_reached": "Batas pemeriksaan teks harian tercapai (5 per hari). Kembali besok!",
+    "scene_stop_button": "🏁 Selesaikan adegan",
+    "scene_menu_button": "🎭 Adegan",
     "scene_not_active": "Tidak ada adegan aktif. Ketik /scene untuk memulai.",
     "scene_ended": "Adegan selesai. Sampai jumpa!",
     "scene_error": "Terjadi kesalahan. Coba lagi.",
