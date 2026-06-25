@@ -541,8 +541,15 @@ async def check_user_text(
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.3,  # для проверки нужна точность, не креатив
+            response_format={"type": "json_object"},
         )
-        content = response.choices[0].message.content
+        content = (response.choices[0].message.content or "").strip()
+        # снимаем markdown-обёртку ```json ... ``` если вдруг прилетела
+        if content.startswith("```"):
+            content = content.strip("`")
+            if content.lstrip().lower().startswith("json"):
+                content = content.lstrip()[4:]
+            content = content.strip()
         data = _json.loads(content)
 
         # минимальная валидация
@@ -554,7 +561,12 @@ async def check_user_text(
         return _sanitize_check_result(text, data, target_code)
 
     except Exception as e:
-        print("check_user_text failed:", e)
+        raw = ""
+        try:
+            raw = response.choices[0].message.content
+        except Exception:
+            pass
+        print("check_user_text failed:", e, "| raw:", repr(raw)[:500])
         return {
             "has_errors": False,
             "corrected": text,
