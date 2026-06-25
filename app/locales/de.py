@@ -96,6 +96,7 @@ MESSAGES = {
     "check_failed": "Text konnte nicht geprüft werden, versuche es erneut.",
     "check_limit_reached": "Textprüfungslimit für heute erreicht (5 pro Tag). Komm morgen wieder!",
     "scene_stop_button": "🏁 Szene beenden",
+    "show_text_button": "📄 Text anzeigen",
     "scene_menu_button": "🎭 Szenen",
     "voice_not_recognized": "Konnte dich nicht verstehen 🎤 Versuch es nochmal oder schreib mir.",
     "voice_recognized": "🎤 Verstanden: {text}",

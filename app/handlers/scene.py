@@ -3,16 +3,16 @@ import tempfile
 
 from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, BufferedInputFile
 from aiogram.fsm.context import FSMContext
 from sqlalchemy import select
 
 from app.bot import bot
 from app.database.db import AsyncSessionLocal
 from app.database.models.user import User
-from app.keyboards.scene import scenes_menu_kb, scene_active_kb
+from app.keyboards.scene import scenes_menu_kb, scene_active_kb, scene_voice_kb
 from app.locales import t
-from app.services.ai import scene_chat, speech_to_text
+from app.services.ai import scene_chat, speech_to_text, text_to_speech
 from app.services.scene import (
     SCENES,
     SCENE_HISTORIES,
@@ -74,7 +74,13 @@ async def handle_scene_reply(message: Message, user_id: int, text: str, lang: st
         return
 
     history.append({"role": "assistant", "content": reply})
-    await message.answer(reply, reply_markup=scene_active_kb(lang))
+    audio = await text_to_speech(reply)
+    if audio:
+        voice_file = BufferedInputFile(audio, filename="reply.mp3")
+        await message.answer_voice(voice_file, reply_markup=scene_voice_kb(lang))
+    else:
+        # озвучка не удалась — показываем текст, чтобы диалог не прервался
+        await message.answer(reply, reply_markup=scene_active_kb(lang))
 
 
 @router.message(Command("scene"))
@@ -135,7 +141,31 @@ async def pick_scene(call: CallbackQuery, state: FSMContext, lang: str):
         await call.message.edit_text(t("scene_error", lang))
         return
 
-    await call.message.edit_text(opening, reply_markup=scene_active_kb(lang))
+    try:
+        await call.message.delete()
+    except Exception:
+        pass
+    audio = await text_to_speech(opening)
+    if audio:
+        voice_file = BufferedInputFile(audio, filename="opening.mp3")
+        await call.message.answer_voice(voice_file, reply_markup=scene_voice_kb(lang))
+    else:
+        await call.message.answer(opening, reply_markup=scene_active_kb(lang))
+
+
+@router.callback_query(F.data == "scene:showtext")
+async def scene_show_text(call: CallbackQuery, lang: str):
+    await call.answer()
+    user_id = call.from_user.id
+    history = SCENE_HISTORIES.get(user_id) or []
+    last_reply = next(
+        (m["content"] for m in reversed(history) if m["role"] == "assistant"),
+        None,
+    )
+    if last_reply:
+        await call.message.answer(last_reply)
+    else:
+        await call.answer(t("scene_not_active", lang))
 
 
 @router.callback_query(F.data == "scene:stop")

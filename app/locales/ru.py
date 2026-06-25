@@ -96,6 +96,7 @@ MESSAGES = {
     "check_failed": "Не удалось проверить текст, попробуй ещё раз.",
     "check_limit_reached": "На сегодня лимит проверок исчерпан (5 в день). Возвращайся завтра!",
     "scene_stop_button": "🏁 Завершить сценку",
+    "show_text_button": "📄 Показать текст",
     "scene_menu_button": "🎭 Сценки",
     "voice_not_recognized": "Не расслышал 🎤 Попробуй ещё раз или напиши текстом.",
     "voice_recognized": "🎤 Расслышал: {text}",

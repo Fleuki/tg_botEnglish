@@ -96,6 +96,7 @@ MESSAGES = {
     "check_failed": "Gagal memeriksa teks, coba lagi.",
     "check_limit_reached": "Batas pemeriksaan teks harian tercapai (5 per hari). Kembali besok!",
     "scene_stop_button": "🏁 Selesaikan adegan",
+    "show_text_button": "📄 Tampilkan teks",
     "scene_menu_button": "🎭 Adegan",
     "voice_not_recognized": "Tidak terdengar jelas 🎤 Coba lagi atau ketik pesannya.",
     "voice_recognized": "🎤 Terdengar: {text}",
