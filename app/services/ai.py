@@ -2,6 +2,7 @@ import os
 import json
 import asyncio
 import logging
+import re
 from app.services.topics import pick_topic
 from openai import AsyncOpenAI
 from sqlalchemy import select
@@ -265,50 +266,195 @@ def get_fallback_lesson(target_code: str = "en") -> dict:
 
 import json as _json
 
-CHECK_SYSTEM_PROMPT = """
+# ── Grounding helpers (check_text; та же логика, что в scene recap) ──
+
+def _fragment_in_line(fragment: str, line: str) -> bool:
+    fragment = fragment.strip()
+    if not fragment:
+        return False
+    return fragment in line
+
+
+def _has_lowercase_i_pronoun(line: str) -> bool:
+    return bool(re.search(r"(?<![A-Za-z])i(?![A-Za-z])", line))
+
+
+def _mentions_capital_i(text: str) -> bool:
+    text_lower = text.lower()
+    if not re.search(r"['\"]?i['\"]?", text_lower):
+        return False
+    return any(
+        word in text_lower
+        for word in (
+            "заглавн", "больш", "capital", "letter", "букв", "always", "всегда",
+            "with a capital", "с большой",
+        )
+    )
+
+
+def _split_rule_sentences(rule: str) -> list[str]:
+    parts = re.split(r"(?<=[.!?…])\s+|\n+", rule.strip())
+    return [p.strip() for p in parts if p.strip()]
+
+
+def _clean_i_capital_mentions(
+    text: str,
+    original: str,
+    target_code: str,
+    *,
+    wrong: str = "",
+) -> str:
+    """Убирает фразы про заглавную I, если они не относятся к этой ошибке."""
+    if target_code != "en" or _allows_i_capital_note(original, wrong):
+        return text.strip()
+    kept = [s for s in _split_rule_sentences(text) if not _mentions_capital_i(s)]
+    return " ".join(kept).strip()
+
+
+def _allows_i_capital_note(original: str, wrong: str) -> bool:
+    """Можно упоминать I/im в пояснении, если это реально в тексте."""
+    if _has_lowercase_i_pronoun(original):
+        return True
+    if re.search(r"\bim\b", original, re.I):
+        return True
+    w = wrong.lower().strip()
+    return w in ("i", "im") or w.startswith("im")
+
+
+def _meaningfully_different(a: str, b: str) -> bool:
+    return a.strip().lower() != b.strip().lower()
+
+
+def _sanitize_check_result(original: str, data: dict, target_code: str) -> dict:
+    """Отсекает нерелевантные правила про «I»; сохраняет настоящие ошибки."""
+    code = target_code or "en"
+    explanations: list[dict] = []
+    seen_rules: set[str] = set()
+    gpt_has_errors = bool(data.get("has_errors"))
+    corrected = (data.get("corrected") or original).strip()
+
+    for exp in data.get("explanations") or []:
+        wrong = (exp.get("wrong") or "").strip()
+        right = (exp.get("right") or "").strip()
+        rule = _clean_i_capital_mentions(
+            exp.get("rule") or "", original, code, wrong=wrong,
+        )
+        if not wrong or not _fragment_in_line(wrong, original):
+            continue
+        if code == "en" and wrong == "i" and not _allows_i_capital_note(original, wrong):
+            continue
+        if not rule:
+            continue
+        rule_key = rule.lower()
+        if rule_key in seen_rules:
+            continue
+        seen_rules.add(rule_key)
+        explanations.append({"wrong": wrong, "right": right, "rule": rule})
+
+    tip = _clean_i_capital_mentions(
+        (data.get("tip") or "").strip(), original, code,
+    )
+    if code == "en" and tip and _mentions_capital_i(tip) and not _allows_i_capital_note(original, ""):
+        tip = ""
+
+    has_errors = bool(explanations) or (
+        gpt_has_errors and _meaningfully_different(corrected, original)
+    )
+    if not has_errors:
+        corrected = original
+        tip = ""
+        praise = (data.get("praise") or "").strip()
+    else:
+        praise = (data.get("praise") or "").strip()
+
+    return {
+        "has_errors": has_errors,
+        "corrected": corrected,
+        "explanations": explanations[:5],
+        "tip": tip,
+        "praise": praise if not has_errors else (praise or ""),
+    }
+
+
+CHECK_EN_I_OVERRIDE = (
+    "CAPITAL 'I' / PRONOUN RULES (English): "
+    "Standalone lowercase 'i' as its own word (e.g. 'i think') — minor; fix silently in "
+    "'corrected', optional tip only, not a separate explanation unless it is the only issue. "
+    "Broken or wrong pronoun forms — REAL errors: 'im' instead of 'I', 'I'm like coffee' when "
+    "the learner means 'I like coffee' (wrong structure/meaning). Flag these in 'explanations' "
+    "with a wrong fragment copied from the text (e.g. wrong='im like coffee', right='I like coffee'). "
+    "NEVER add a generic capital-I lecture to unrelated errors. Never mention capital 'I' in tip "
+    "or rule unless standalone lowercase 'i' or 'im' is actually in the text."
+)
+
+CHECK_GROUNDING_RULES = (
+    "STRICT GROUNDING RULES (must follow): "
+    "1) Each explanation must refer to words that actually appear in the student's text. "
+    "Every 'wrong' field must be an exact case-sensitive substring of the text (a phrase is OK). "
+    "2) One error — one relevant rule in plain language. Do not attach unrelated rules. "
+    "3) Never repeat the same rule across multiple explanations. "
+    "4) If the text has real grammar or meaning errors, has_errors MUST be true — do NOT praise. "
+    "5) Praise and warm 'tip' only when the text is genuinely correct (has_errors=false)."
+)
+
+CHECK_EN_EXAMPLES = (
+    "EXAMPLES (follow this pattern): "
+    "'im like coffee' → has_errors=true, corrected='I like coffee', "
+    "explanations=[{wrong:'im like coffee', right:'I like coffee', rule: plain explanation in native language}]. "
+    "'I'm like coffee' (meaning: I enjoy coffee) → has_errors=true, corrected='I like coffee', "
+    "explain that 'I'm like' means 'I resemble', not 'I enjoy'. "
+    "'Rissian' → spelling error, flag it. "
+    "'I like coffee.' with no issues → has_errors=false, praise only."
+)
+
+CHECK_SYSTEM_PROMPT = f"""
 You are a warm, encouraging English teacher checking a student's writing.
 
-The student is a learner practicing English. Your goal is to help them communicate better — NOT to enforce perfect formatting. Over-correction discourages learners, so flag only mistakes that actually affect understanding or are clearly wrong grammar.
+The student is a learner practicing English. Your goal is to help them communicate better. Be friendly, but DO catch real mistakes — grammar, wrong structure, wrong word choice, and spelling. Do not praise incorrect text.
 
-WHAT COUNTS AS A REAL ERROR (flag these in 'explanations'):
-- Grammar that affects meaning: verb tense, subject-verb agreement, plurals.
-- Wrong or missing articles where it clearly sounds wrong (a / an / the).
-- Wrong prepositions (e.g. "depend of" -> "depend on").
-- Wrong word choice, or a word that doesn't fit the meaning.
-- Word order that sounds unnatural or wrong.
-- Real spelling mistakes (not just informal style).
+WHAT COUNTS AS A REAL ERROR (flag in 'explanations', set has_errors=true):
+- Wrong grammar or structure that changes or breaks the meaning (e.g. "im like coffee", "I'm like coffee" when they mean enjoying coffee).
+- Missing or wrong words, wrong verb forms, subject-verb agreement, wrong articles/prepositions.
+- Wrong word choice or meaning (e.g. "I'm like" vs "I like").
+- Clear spelling mistakes in words (e.g. "Rissian" → "Russian").
+- Broken pronoun forms: "im", "ive" without apostrophe when "I" / "I've" is meant.
 
-WHAT IS NOT A REAL ERROR (do NOT put these in 'explanations', do NOT set has_errors for them, do NOT change them in 'corrected'):
-- A missing period or other end punctuation, especially in short or informal messages.
-- Lowercase "i" instead of "I", or a missing capital letter at the start, in casual short text.
+WHAT IS NOT A REAL ERROR (do NOT flag alone):
+- Missing period or casual punctuation in short messages.
+- Standalone lowercase "i" as its own word ONLY — fix in 'corrected', optional tip; do not treat as the only error if bigger mistakes exist.
 - Stylistic preferences when the sentence is already correct and clear.
-- Anything a native speaker would understand perfectly and not bother correcting in a friendly chat.
-- IMPORTANT: lowercase "i" and missing punctuation must NEVER appear in 'explanations', even when the text has other real errors. If you find a real error AND the text has a lowercase "i", correct the "i" silently inside 'corrected', keep it OUT of 'explanations', and you may mention it only in 'tip'.
+
+{CHECK_EN_I_OVERRIDE}
+
+{CHECK_GROUNDING_RULES}
+
+{CHECK_EN_EXAMPLES}
 
 THE GENTLE TIP ('tip' field):
-- This is separate from errors. Use it for ONE small, friendly note about capitalization of the word "I" — that in English "I" is always written as a capital letter. Do NOT use 'tip' for punctuation (periods, commas) — never mention missing periods at all.
-- Phrase it kindly and casually, like a side remark, not a correction. It must NOT sound like the student made a mistake.
-- Use 'tip' for at most ONE such note, and only when it's actually relevant. If there's nothing minor worth mentioning, set "tip" to "".
-- 'tip' NEVER affects has_errors and NEVER appears in 'explanations'.DECISION RULE:
-- has_errors=true ONLY when there is at least one REAL error from the first list.
-- If the only issues are minor formatting things, set has_errors=false, corrected=original, explanations=[], give warm praise, and optionally add a gentle 'tip'.
+- Optional ONE small side note — only when relevant and the text is otherwise correct or the note is separate from main errors.
+- Do NOT use 'tip' for punctuation. If has_errors=true, tip is usually "".
+
+DECISION RULE:
+- has_errors=true when ANY real error from the first list is present. Provide corrected text and explanations.
+- has_errors=false ONLY when the text is genuinely correct. Then give warm praise; tip optional.
+- NEVER say the text is excellent if corrected would differ in grammar or meaning.
 
 Return STRICT VALID JSON only. No markdown, no extra text. Schema:
-{
+{{
   "has_errors": true/false,
   "corrected": "the corrected version of the full text (or the original if there are no real errors)",
   "explanations": [
-    { "wrong": "the incorrect fragment", "right": "the correct fragment", "rule": "short, simple explanation of the rule in the student's native language" }
+    {{ "wrong": "the incorrect fragment", "right": "the correct fragment", "rule": "short, simple explanation in the student's native language" }}
   ],
   "tip": "an optional gentle note in the student's native language, or empty string",
-  "praise": "one short encouraging sentence in the student's native language"
-}
+  "praise": "one short encouraging sentence in the student's native language (only when has_errors=false)"
+}}
 
 Rules:
-- Explanations, tip, and praise MUST be written in the student's NATIVE LANGUAGE (given below), so a beginner understands.
-- Keep rule explanations short and simple, no linguistic jargon.
-- List at most 5 of the most important real errors. If there are more, pick the ones that matter most for being understood.
-- 'corrected' should fix the real errors but otherwise stay faithful to what the student wrote — keep their informal style.
+- Explanations, tip, and praise MUST be written in the student's NATIVE LANGUAGE (given below).
+- Keep rule explanations short and simple, no linguistic jargon — like a friend, not a textbook.
+- List at most 5 of the most important real errors.
+- 'corrected' must fix all real errors in the full text.
 
 """
 
@@ -323,28 +469,29 @@ def get_check_system_prompt(target_language: str) -> str:
     return f"""
 You are a warm, encouraging {target} teacher checking a student's writing.
 
-The student is learning {target}. Check text written in {target}. Your goal is to help them communicate better — NOT to enforce perfect formatting. Over-correction discourages learners, so flag only mistakes that actually affect understanding or are clearly wrong grammar.
+The student is learning {target}. Check text written in {target}. Your goal is to help them communicate better. Be friendly, but DO catch real mistakes — grammar, wrong structure, wrong word choice, and spelling. Do not praise incorrect text.
 
-WHAT COUNTS AS A REAL ERROR (flag these in 'explanations'):
-- Grammar that affects meaning: verb tense, agreement, plurals, cases (if applicable).
-- Wrong word choice, or a word that doesn't fit the meaning.
-- Word order that sounds unnatural or wrong.
-- Real spelling mistakes (not just informal style).
+WHAT COUNTS AS A REAL ERROR (flag in 'explanations', set has_errors=true):
+- Wrong grammar or structure that changes or breaks the meaning.
+- Missing or wrong words, wrong verb forms, agreement, wrong articles/prepositions/cases.
+- Wrong word choice or meaning.
+- Clear spelling mistakes.
 
-WHAT IS NOT A REAL ERROR (do NOT put these in 'explanations', do NOT set has_errors for them, do NOT change them in 'corrected'):
-- A missing period or other end punctuation, especially in short or informal messages.
-- A missing capital letter at the start, in casual short text.
+WHAT IS NOT A REAL ERROR (do NOT flag alone):
+- Missing period or casual punctuation in short messages.
+- Minor capitalization in otherwise correct casual text.
 - Stylistic preferences when the sentence is already correct and clear.
-- Anything a native speaker would understand perfectly and not bother correcting in a friendly chat.
 
 THE GENTLE TIP ('tip' field):
-- Optional ONE small, friendly side note about a minor detail — only when relevant.
-- Phrase it kindly and casually, not like a correction. If nothing worth mentioning, set "tip" to "".
-- 'tip' NEVER affects has_errors and NEVER appears in 'explanations'.
+- Optional ONE small side note — only when relevant and the text is otherwise correct.
+- If has_errors=true, tip is usually "".
+
+{CHECK_GROUNDING_RULES}
 
 DECISION RULE:
-- has_errors=true ONLY when there is at least one REAL error from the first list.
-- If the only issues are minor formatting things, set has_errors=false, corrected=original, explanations=[], give warm praise, and optionally add a gentle 'tip'.
+- has_errors=true when ANY real error is present. Provide corrected text and explanations.
+- has_errors=false ONLY when the text is genuinely correct. Then give warm praise.
+- NEVER praise if corrected would differ in grammar or meaning.
 
 Return STRICT VALID JSON only. No markdown, no extra text. Schema:
 {{
@@ -402,9 +549,9 @@ async def check_user_text(
         if "has_errors" not in data or "corrected" not in data:
             raise ValueError("bad structure")
         data.setdefault("explanations", [])
-        data.setdefault("tip", "")       # <- новое поле, мягкая подсказка
+        data.setdefault("tip", "")
         data.setdefault("praise", "")
-        return data
+        return _sanitize_check_result(text, data, target_code)
 
     except Exception as e:
         print("check_user_text failed:", e)
