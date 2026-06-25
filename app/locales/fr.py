@@ -96,6 +96,7 @@ MESSAGES = {
     "check_failed": "Échec de la vérification du texte, réessaye.",
     "check_limit_reached": "Limite de vérification de texte atteinte pour aujourd'hui (5 par jour). Reviens demain!",
     "scene_stop_button": "🏁 Terminer la scène",
+    "show_text_button": "📄 Afficher le texte",
     "scene_menu_button": "🎭 Scènes",
     "voice_not_recognized": "Je n'ai pas bien compris 🎤 Réessaie ou écris ton message.",
     "voice_recognized": "🎤 J'ai entendu : {text}",
