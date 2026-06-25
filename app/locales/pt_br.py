@@ -18,6 +18,7 @@ MESSAGES = {
     "target_lang_name_pt_br": "português",
     "level": "📊 Qual é o seu nível de {language}?",
     "lesson_time": "⏰ Que horas quer as aulas?",
+    "lesson_time_invalid": "Digite a hora no formato HH:MM (24h), ex.: 07:40 ou 19:30.",
     "done": "✅ Pronto! Perfil salvo 📚",
     "choose_interface_language": "Escolha o idioma da interface",
     "lesson_not_found": "Lição não encontrada",

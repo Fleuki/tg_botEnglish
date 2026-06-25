@@ -18,6 +18,7 @@ MESSAGES = {
     "target_lang_name_pt_br": "Portugis",
     "level": "📊 Berapa level {language} kamu?",
     "lesson_time": "⏰ Jam berapa kamu ingin belajar?",
+    "lesson_time_invalid": "Masukkan waktu dalam format HH:MM (24 jam), mis. 07:40 atau 19:30.",
     "done": "✅ Selesai! Profil tersimpan 📚",
     "choose_interface_language": "Pilih bahasa antarmuka",
     "lesson_not_found": "Pelajaran tidak ditemukan",
