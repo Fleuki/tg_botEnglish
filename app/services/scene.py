@@ -223,7 +223,7 @@ def get_scene_opening(scene_id: str, target_language: str) -> str | None:
     return scene["openings"].get(code)
 
 
-def get_scene_check_context(target_language: str) -> str:
+def get_scene_check_context(target_language: str, native_language: str = "Russian") -> str:
     code = target_language or "en"
     lang = language_name(code)
 
@@ -252,8 +252,8 @@ def get_scene_check_context(target_language: str) -> str:
     else:
         fragment_examples = "short casual fragments"
         wrong_lang = f"clearly wrong {lang}"
-        good_tip = '"a small friendly hint in plain words"'
-        bad_tip = '"a formal grammar textbook explanation"'
+        good_tip = "a short friendly hint, written in the student's native language, no jargon"
+        bad_tip = "a formal grammar-textbook explanation, or text in any language other than the native one"
         i_override = ""
 
     return (
@@ -277,7 +277,12 @@ def get_scene_check_context(target_language: str) -> str:
         "mistakes. Before any note, verify the exact wrong fragment appears in the line "
         "in that exact form (case-sensitive). "
         f"{i_override}"
-        "Every 'wrong' field must be an exact case-sensitive substring of the student's line."
+        "Every 'wrong' field must be an exact case-sensitive substring of the student's line. "
+        f"LANGUAGE OF EXPLANATIONS (critical): every 'rule', 'tip' and 'praise' MUST be written "
+        f"entirely in {native_language}, the student's native language. This applies to ALL notes "
+        f"without exception, even though the student's line itself is in {lang}. Do NOT switch to "
+        f"{lang} or any other language for the explanations. If you start an explanation, finish it "
+        f"in {native_language}."
     )
 
 
@@ -423,7 +428,7 @@ async def build_scene_recap(
     if not user_lines:
         return None
 
-    scene_context = get_scene_check_context(target_language)
+    scene_context = get_scene_check_context(target_language, native_language)
     results = await asyncio.gather(
         *(
             check_user_text(
