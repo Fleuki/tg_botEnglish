@@ -97,6 +97,8 @@ MESSAGES = {
     "check_limit_reached": "Text check limit reached for today (5 per day). Come back tomorrow!",
     "scene_stop_button": "🏁 End scene",
     "scene_menu_button": "🎭 Scenes",
+    "voice_not_recognized": "Couldn't hear you 🎤 Try again or type your message.",
+    "voice_recognized": "🎤 I heard: {text}",
     "scene_not_active": "No active scene. Use /scene to start one.",
     "scene_ended": "Scene ended. See you next time!",
     "scene_error": "Sorry, something went wrong. Please try again.",
