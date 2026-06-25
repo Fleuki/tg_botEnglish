@@ -16,6 +16,7 @@ from app.keyboards.settings import (
     target_language_settings_kb,
 )
 from app.locales import t
+from app.services.lesson_time import parse_lesson_time
 
 router = Router()
 
@@ -199,8 +200,12 @@ async def ask_time(call: CallbackQuery, state: FSMContext, lang: str):
 
 @router.message(SettingsState.edit_lesson_time)
 async def save_time(message: Message, state: FSMContext, lang: str):
-    # TODO: добавить проверку формата времени (ЧЧ:ММ)
-    await update_user_field(message.from_user.id, "lesson_time", message.text)
+    lesson_time = parse_lesson_time(message.text or "")
+    if not lesson_time:
+        await message.answer(t("lesson_time_invalid", lang))
+        return
+
+    await update_user_field(message.from_user.id, "lesson_time", lesson_time)
     await state.clear()
     await message.answer(
         t("saved", lang),

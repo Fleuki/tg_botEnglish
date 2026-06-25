@@ -10,6 +10,7 @@ from aiogram.types import ReplyKeyboardRemove
 from aiogram import F
 from aiogram.types import CallbackQuery
 from app.keyboards.settings import level_register_kb, target_language_register_kb
+from app.services.lesson_time import parse_lesson_time
 
 router = Router()
 LANGUAGES = {
@@ -91,12 +92,14 @@ async def set_level(call: CallbackQuery, state: FSMContext):
 # ----------------------------------
 @router.message(RegisterState.lesson_time)
 async def set_time(message: Message, state: FSMContext):
-
-    await state.update_data(
-        lesson_time=message.text
-    )
-
     data = await state.get_data()
+    iface = data["interface_language"]
+    lesson_time = parse_lesson_time(message.text or "")
+    if not lesson_time:
+        await message.answer(t("lesson_time_invalid", iface))
+        return
+
+    await state.update_data(lesson_time=lesson_time)
 
     async with AsyncSessionLocal() as session:
 

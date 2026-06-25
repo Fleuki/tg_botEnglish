@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, date
 from zoneinfo import ZoneInfo
 from sqlalchemy import select
@@ -11,6 +12,8 @@ from app.bot import bot
 from app.keyboards.lesson import lesson_kb
 from app.keyboards.srs import srs_reminder_kb
 from app.locales import t
+
+logger = logging.getLogger(__name__)
 
 TZ = ZoneInfo("Europe/Moscow")
 
@@ -28,30 +31,68 @@ async def send_daily_lessons():
         result = await session.execute(stmt)
         users = result.scalars().all()
 
+    if not users:
+        return
+
+    logger.info(
+        "Scheduled lessons slot=%s (MSK): %d user(s) — %s",
+        now,
+        len(users),
+        ", ".join(str(u.telegram_id) for u in users),
+    )
+
     for user in users:
         if (user.telegram_id, today) in LESSONS_SENT_TODAY:
+            logger.info(
+                "Lesson already sent today, skip telegram_id=%s slot=%s",
+                user.telegram_id,
+                now,
+            )
             continue
 
-        # 1. Генерируем и отправляем урок (общая функция-сервис)
-        lesson_data = await create_lesson_for_user(user)
-        lang = user.interface_language or "en"
+        try:
+            logger.info(
+                "Sending lesson telegram_id=%s lesson_time=%s slot=%s",
+                user.telegram_id,
+                user.lesson_time,
+                now,
+            )
+            lesson_data = await create_lesson_for_user(user)
+            lang = user.interface_language or "en"
 
-        await bot.send_message(
-            user.telegram_id,
-            f"{lesson_data['title']}\n\n{lesson_data['text']}",
-            reply_markup=lesson_kb(lang)
-        )
-
-        LESSONS_SENT_TODAY.add((user.telegram_id, today))
-
-        # 2. Если есть слова на повторение — одно деликатное напоминание.
-        #    Никакого ежечасного спама: одно сообщение с кнопкой "Повторить".
-        due = await count_due_words(user.telegram_id, user.target_language or "en")
-        if due > 0:
             await bot.send_message(
                 user.telegram_id,
-                t("repeat_reminder", lang).format(count=due),
-                reply_markup=srs_reminder_kb(lang)
+                f"{lesson_data['title']}\n\n{lesson_data['text']}",
+                reply_markup=lesson_kb(lang),
+            )
+
+            LESSONS_SENT_TODAY.add((user.telegram_id, today))
+            logger.info(
+                "Lesson sent telegram_id=%s slot=%s title=%r",
+                user.telegram_id,
+                now,
+                lesson_data.get("title", ""),
+            )
+
+            due = await count_due_words(user.telegram_id, user.target_language or "en")
+            if due > 0:
+                await bot.send_message(
+                    user.telegram_id,
+                    t("repeat_reminder", lang).format(count=due),
+                    reply_markup=srs_reminder_kb(lang),
+                )
+                logger.info(
+                    "SRS reminder sent telegram_id=%s due_words=%d",
+                    user.telegram_id,
+                    due,
+                )
+
+        except Exception:
+            logger.exception(
+                "Lesson send failed telegram_id=%s lesson_time=%s slot=%s",
+                user.telegram_id,
+                user.lesson_time,
+                now,
             )
 
 
