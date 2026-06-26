@@ -28,4 +28,9 @@ class User(Base):
     checks_today = Column(Integer, default=0)
     checks_date = Column(Date, nullable=True)
 
+    # Разделение органических возвратов и возвратов по уведомлению.
+    last_notified_at = Column(DateTime, nullable=True)
+    organic_returns = Column(Integer, default=0)
+    notified_returns = Column(Integer, default=0)
+
 # (Date уже импортирован вверху, мы добавляли его для lessons_date)

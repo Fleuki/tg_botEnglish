@@ -73,6 +73,18 @@ ADD_COLUMNS_SQL = [
         ADD COLUMN IF NOT EXISTS checks_date DATE
     """),
     text("""
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS last_notified_at TIMESTAMP
+    """),
+    text("""
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS organic_returns INTEGER DEFAULT 0
+    """),
+    text("""
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS notified_returns INTEGER DEFAULT 0
+    """),
+    text("""
         ALTER TABLE vocab
         ADD COLUMN IF NOT EXISTS target_language VARCHAR NOT NULL DEFAULT 'en'
     """),
@@ -85,6 +97,8 @@ FILL_NULLS_SQL = [
     text("UPDATE users SET preferred_topic = 'general' WHERE preferred_topic IS NULL"),
     text("UPDATE users SET lessons_today = 0 WHERE lessons_today IS NULL"),
     text("UPDATE users SET checks_today = 0 WHERE checks_today IS NULL"),
+    text("UPDATE users SET organic_returns = 0 WHERE organic_returns IS NULL"),
+    text("UPDATE users SET notified_returns = 0 WHERE notified_returns IS NULL"),
     text("UPDATE vocab SET target_language = 'en' WHERE target_language IS NULL"),
 ]
 
