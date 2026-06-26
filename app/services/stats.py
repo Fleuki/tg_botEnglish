@@ -1,11 +1,70 @@
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-from sqlalchemy import select
+from sqlalchemy import select, update, func
 from app.database.db import AsyncSessionLocal
 from app.database.models.user import User
 from app.database.models.vocab import Vocab
 
 TZ = ZoneInfo("Europe/Moscow")
+
+# Визит считается новым, если с последней активности прошло больше N минут.
+_VISIT_SESSION_TIMEOUT = timedelta(minutes=30)
+# Если пользователь вернулся в течение этого окна после пуша планировщика —
+# визит атрибутируется к «уведомлению», иначе к «органике».
+_PUSH_ATTRIBUTION_WINDOW = timedelta(hours=4)
+
+# In-memory дедупликация: telegram_id → момент последнего засчитанного визита.
+# Сбрасывается при рестарте бота, что приемлемо.
+_last_visit_counted: dict[int, datetime] = {}
+
+
+async def track_visit(user: User) -> None:
+    """Засчитывает новый визит пользователя и классифицирует его.
+
+    Push-визит: пользователь вернулся в пределах PUSH_ATTRIBUTION_WINDOW
+    после того, как планировщик отправил урок (last_notified_at).
+    Органика: всё остальное.
+
+    Один визит за сессию (30 мин тишины = новая сессия).
+    """
+    now = datetime.utcnow()
+
+    # Дедупликация внутри сессии через in-memory кэш.
+    last_counted = _last_visit_counted.get(user.telegram_id)
+    if last_counted is not None and (now - last_counted) < _VISIT_SESSION_TIMEOUT:
+        return
+
+    # Проверяем, действительно ли пользователь был «отсутствующим».
+    # last_activity_date обновляется только на учебных действиях — это
+    # достаточно точный прокси для определения конца предыдущей сессии.
+    if user.last_activity_date is not None:
+        if (now - user.last_activity_date) < _VISIT_SESSION_TIMEOUT:
+            # Пользователь был активен недавно — та же сессия, не считаем.
+            _last_visit_counted[user.telegram_id] = now
+            return
+
+    # Новый визит — определяем тип.
+    is_push = (
+        user.last_notified_at is not None
+        and (now - user.last_notified_at) <= _PUSH_ATTRIBUTION_WINDOW
+    )
+
+    _last_visit_counted[user.telegram_id] = now
+
+    async with AsyncSessionLocal() as session:
+        if is_push:
+            await session.execute(
+                update(User)
+                .where(User.telegram_id == user.telegram_id)
+                .values(notified_returns=func.coalesce(User.notified_returns, 0) + 1)
+            )
+        else:
+            await session.execute(
+                update(User)
+                .where(User.telegram_id == user.telegram_id)
+                .values(organic_returns=func.coalesce(User.organic_returns, 0) + 1)
+            )
+        await session.commit()
 
 
 async def update_user_activity(telegram_id: int):
