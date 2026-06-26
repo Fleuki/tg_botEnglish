@@ -28,6 +28,7 @@ from app.services.prompts import language_name
 
 router = Router()
 
+MAX_VOICE_DURATION = 60  # секунд; длиннее — отказываем до скачивания и whisper
 
 async def _user_target_language(telegram_id: int) -> str:
     async with AsyncSessionLocal() as session:
@@ -190,6 +191,9 @@ async def scene_message(message: Message, lang: str):
 @router.message(F.voice, lambda m: is_scene_active(m.from_user.id))
 async def scene_voice(message: Message, lang: str):
     user_id = message.from_user.id
+    if message.voice.duration and message.voice.duration > MAX_VOICE_DURATION:
+        await message.answer(t("voice_too_long", lang).format(sec=MAX_VOICE_DURATION))
+        return
     tg_file = await bot.get_file(message.voice.file_id)
     fd, tmp_path = tempfile.mkstemp(suffix=".ogg")
     os.close(fd)

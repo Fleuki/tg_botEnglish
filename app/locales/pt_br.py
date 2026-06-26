@@ -100,6 +100,7 @@ MESSAGES = {
     "scene_menu_button": "🎭 Cenas",
     "voice_not_recognized": "Não entendi 🎤 Tente novamente ou escreva o texto.",
     "voice_recognized": "🎤 Entendi: {text}",
+    "voice_too_long": "🎤 Áudio muito longo (máx. {sec} seg). Tente falar mais curto — também é melhor para praticar.",
     "scene_not_active": "Nenhuma cena ativa. Use /scene para começar.",
     "scene_ended": "Cena encerrada. Até a próxima!",
     "scene_error": "Algo deu errado. Tente novamente.",
