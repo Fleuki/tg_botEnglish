@@ -100,6 +100,7 @@ MESSAGES = {
     "scene_menu_button": "🎭 Adegan",
     "voice_not_recognized": "Tidak terdengar jelas 🎤 Coba lagi atau ketik pesannya.",
     "voice_recognized": "🎤 Terdengar: {text}",
+    "voice_too_long": "🎤 Pesan suara terlalu panjang (maks {sec} detik). Coba lebih singkat — juga lebih bagus untuk latihan.",
     "scene_not_active": "Tidak ada adegan aktif. Ketik /scene untuk memulai.",
     "scene_ended": "Adegan selesai. Sampai jumpa!",
     "scene_error": "Terjadi kesalahan. Coba lagi.",
