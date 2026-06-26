@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, date
 from zoneinfo import ZoneInfo
-from sqlalchemy import select
+from sqlalchemy import select, update
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.database.db import AsyncSessionLocal
@@ -67,6 +67,17 @@ async def send_daily_lessons():
             )
 
             LESSONS_SENT_TODAY.add((user.telegram_id, today))
+
+            # Отметка времени уведомления (UTC) — чтобы потом отличать
+            # возврат по уведомлению от органического возврата.
+            async with AsyncSessionLocal() as session:
+                await session.execute(
+                    update(User)
+                    .where(User.telegram_id == user.telegram_id)
+                    .values(last_notified_at=datetime.utcnow())
+                )
+                await session.commit()
+
             logger.info(
                 "Lesson sent telegram_id=%s slot=%s title=%r",
                 user.telegram_id,
