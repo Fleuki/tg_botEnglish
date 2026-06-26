@@ -7,6 +7,8 @@ from aiogram.types import Message, CallbackQuery, BufferedInputFile
 from aiogram.fsm.context import FSMContext
 from sqlalchemy import select
 
+from app.services.stats import update_user_activity
+
 from app.bot import bot
 from app.database.db import AsyncSessionLocal
 from app.database.models.user import User
@@ -65,6 +67,7 @@ async def finish_scene(message: Message, user_id: int, lang: str) -> None:
 
 
 async def handle_scene_reply(message: Message, user_id: int, text: str, lang: str) -> None:
+    await update_user_activity(user_id)
     history = SCENE_HISTORIES[user_id]
     history.append({"role": "user", "content": text})
 

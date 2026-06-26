@@ -9,7 +9,7 @@ from aiogram.fsm.state import State, StatesGroup
 from sqlalchemy import select
 from datetime import datetime
 from zoneinfo import ZoneInfo
-
+from app.services.stats import update_user_activity
 from app.database.db import AsyncSessionLocal
 from app.database.models.user import User
 from app.services.ai import check_user_text
@@ -88,6 +88,7 @@ async def process_check(message: Message, state: FSMContext, lang: str, user: Us
         await message.answer(t("check_too_long", lang).format(max=MAX_TEXT_LENGTH))
         return
 
+    await update_user_activity(message.from_user.id)
     await state.clear()
     await message.answer(t("check_analyzing", lang))
 
