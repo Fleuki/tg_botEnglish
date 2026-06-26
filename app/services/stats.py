@@ -53,10 +53,15 @@ async def track_visit(user: User) -> None:
 
     async with AsyncSessionLocal() as session:
         if is_push:
+            # last_notified_at обнуляем атомарно с инкрементом, чтобы
+            # один пуш засчитался ровно один раз даже при повторном заходе.
             await session.execute(
                 update(User)
                 .where(User.telegram_id == user.telegram_id)
-                .values(notified_returns=func.coalesce(User.notified_returns, 0) + 1)
+                .values(
+                    notified_returns=func.coalesce(User.notified_returns, 0) + 1,
+                    last_notified_at=None,
+                )
             )
         else:
             await session.execute(
