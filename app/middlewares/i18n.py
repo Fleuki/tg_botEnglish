@@ -6,6 +6,7 @@ from sqlalchemy import select
 
 from app.database.db import AsyncSessionLocal
 from app.database.models.user import User
+from app.services.stats import track_visit
 
 
 class I18nMiddleware(BaseMiddleware):
@@ -41,8 +42,10 @@ class I18nMiddleware(BaseMiddleware):
                 )
                 user = result.scalar_one_or_none()
 
-            if user and user.interface_language:
-                lang = user.interface_language
+            if user:
+                if user.interface_language:
+                    lang = user.interface_language
+                await track_visit(user)
 
         data["user"] = user
         data["lang"] = lang
